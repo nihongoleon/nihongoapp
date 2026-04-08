@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel Maestro – Nihongo</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 30px; }
+    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; }
+    button { padding: 8px 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<h1>Panel del Maestro</h1>
+<div id="app">Cargando…</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    getDocs,
+    setDoc,
+    doc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+    authDomain: "nihongoapp-85125.firebaseapp.com",
+    projectId: "nihongoapp-85125",
+    storageBucket: "nihongoapp-85125.firebasestorage.app",
+    messagingSenderId: "1051487833491",
+    appId: "1:1051487833491:web:8b8db6c2cf4fd809e8ac66"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const contenedor = document.getElementById("app");
+
+  function hoy() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function sumar30Dias() {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function estaActivo(fecha) {
+    return new Date() <= new Date(fecha);
+  }
+
+  async function cargar() {
+    const snap = await getDocs(collection(db, "alumnos"));
+
+    if (snap.empty) {
+      const alumno = {
+        id: 1,
+        nombre: "Carlos",
+        nivel: "N5",
+        accesoValidoHasta: sumar30Dias(),
+        pagos: []
+      };
+      await setDoc(doc(db, "alumnos", "1"), alumno);
+      pintar([alumno]);
+    } else {
+      pintar(snap.docs.map(d => d.data()));
+    }
+  }
+
+  async function registrarPago(alumno) {
+    alumno.accesoValidoHasta = sumar30Dias();
+    alumno.pagos.push({ fecha: hoy(), monto: 1200 });
+    await setDoc(doc(db, "alumnos", String(alumno.id)), alumno);
+    cargar();
+  }
+
+  function pintar(alumnos) {
+    contenedor.innerHTML = "";
+    alumnos.forEach(a => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <p><b>Nombre:</b> ${a.nombre}</p>
+        <p><b>Nivel:</b> ${a.nivel}</p>
+        <p><b>Estatus:</b> ${estaActivo(a.accesoValidoHasta) ? "Activo ✅" : "Suspendido 🔒"}</p>
+        <p><b>Válido hasta:</b> ${a.accesoValidoHasta}</p>
+        <h4>Pagos</h4>
+        ${(a.pagos || []).map(p => `<p>${p.fecha} – $${p.monto}</p>`).join("")}
+        <button>Registrar pago (+30 días)</button>
+      `;
+      div.querySelector("button").onclick = () => registrarPago(a);
+      contenedor.appendChild(div);
+    });
+  }
+
+  cargar();
+</script>
+
+</body>
+</html>
