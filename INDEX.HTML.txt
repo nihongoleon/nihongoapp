@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nihongo App</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 30px; background:#f7f7f7; }
+    h1,h2 { margin-bottom: 10px; }
+    .card { background:#fff; border:1px solid #ccc; padding:15px; margin-bottom:15px; border-radius:6px; }
+    button { padding:8px 12px; margin-top:8px; }
+    input { padding:6px; margin:4px 0; width:100%; }
+    .warning { color:#b00020; font-weight:bold; }
+    .ok { color:green; font-weight:bold; }
+  </style>
+</head>
+<body>
+
+<h1>Nihongo App</h1>
+<div id="app">Cargando…</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, getDocs, doc, getDoc, setDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  /* ---------- CONFIGURACIÓN FIREBASE ---------- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+    authDomain: "nihongoapp-85125.firebaseapp.com",
+    projectId: "nihongoapp-85125",
+    storageBucket: "nihongoapp-85125.firebasestorage.app",
+    messagingSenderId: "1051487833491",
+    appId: "1:1051487833491:web:8b8db6c2cf4fd809e8ac66"
+  };
+
+  const appFirebase = initializeApp(firebaseConfig);
+  const db = getFirestore(appFirebase);
+  const app = document.getElementById("app");
+
+  /* ---------- CREDENCIALES MAESTRO ---------- */
+  const MAESTRO = { usuario: "admin", pass: "admin" };
+
+  /* ---------- UTILIDADES ---------- */
+  function hoy() {
+    return new Date().toISOString().slice(0,10);
+  }
+
+  function sumar30Dias() {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0,10);
+  }
+
+  function activo(hasta) {
+    return new Date() <= new Date(hasta);
+  }
+
+  /* ---------- INICIO ---------- */
+  mostrarLogin();
+
+  /* ---------- LOGIN ---------- */
+  function mostrarLogin() {
+    app.innerHTML = `
+      <h2>Login</h2>
+      <input id="user" placeholder="Usuario">
+      <input id="pass" type="password" placeholder="Contraseña">
+      <button id="entrar">Entrar</button>
+    `;
+
+    document.getElementById("entrar").onclick = async () => {
+      const u = user.value.trim();
+      const p = pass.value.trim();
+
+      if (u === MAESTRO.usuario && p === MAESTRO.pass) {
+        mostrarPanelMaestro();
+        return;
+      }
+
+      const ref = doc(db, "alumnos", u);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        alert("Alumno no encontrado");
+        return;
+      }
+
+      const alumno = snap.data();
+      if (alumno.pass !== p) {
+        alert("Contraseña incorrecta");
+        return;
+      }
+
+      mostrarPanelAlumno(alumno);
+    };
+  }
+
+  /* ---------- PANEL MAESTRO ---------- */
+  async function mostrarPanelMaestro() {
+    const snap = await getDocs(collection(db, "alumnos"));
+    app.innerHTML = "<h2>Panel del Maestro</h2>";
+
+    snap.docs.forEach(d => {
+      const a = d.data();
+      const div = document.createElement("div");
+      div.className = "card";
+
+      div.innerHTML = `
+        <p><b>${a.nombre}</b> (${a.usuario})</p>
+        <p>Nivel: ${a.nivel}</p>
+        <p>Estado: ${activo(a.accesoValidoHasta) ? "<span class='ok'>Activo ✅</span>" : "<span class='warning'>Suspendido 🔒</span>"}</p>
+        <p>Acceso válido hasta: ${a.accesoValidoHasta}</p>
+        <button>Registrar pago (+30 días)</button>
+      `;
+
+      div.querySelector("button").onclick = async () => {
+        a.accesoValidoHasta = sumar30Dias();
+        a.pagos.push({ fecha: hoy(), monto: 1200 });
+        await setDoc(doc(db, "alumnos", a.usuario), a);
+        mostrarPanelMaestro();
+      };
+
+      app.appendChild(div);
+    });
+
+    const salir = document.createElement("button");
+    salir.textContent = "Salir";
+    salir.onclick = mostrarLogin;
+    app.appendChild(salir);
+  }
+
+  /* ---------- PANEL ALUMNO ---------- */
+  function mostrarPanelAlumno(a) {
+    app.innerHTML = `
+      <h2>Panel del Alumno</h2>
+      <div class="card">
+        <p><b>${a.nombre}</b></p>
+        <p>Nivel: ${a.nivel}</p>
+        <p>Acceso válido hasta: ${a.accesoValidoHasta}</p>
+        <p>
+          Estado:
+          ${activo(a.accesoValidoHasta)
+            ? "<span class='ok'>Activo ✅</span>"
+            : "<span class='warning'>Suspendido 🔒</span>"}
+        </p>
+        ${
+          activo(a.accesoValidoHasta)
+          ? ""
+          : "<p class='warning'>Tu cuenta está suspendida por pagos pendientes. Contacta a tu maestro.</p>"
+        }
+      </div>
+      <button id='logout'>Salir</button>
+    `;
+
+    document.getElementById("logout").onclick = mostrarLogin;
+  }
+</script>
+
+</body>
+</html>
+``
