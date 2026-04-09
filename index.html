@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 2 Estable</title>
+<title>Nihongo – Fase 2 con sesión</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding: 30px; background:#f5f5f5; }
@@ -29,31 +29,62 @@ th, td { border: 1px solid #ccc; padding: 6px; }
 
 <div id="app"></div>
 
-<!-- Firebase (NO module) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
-/* ================= FIREBASE ================= */
-const firebaseConfig = {
+/* ===== FIREBASE ===== */
+firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
   projectId: "nihongoapp-85125"
-};
-firebase.initializeApp(firebaseConfig);
+});
 const db = firebase.firestore();
 
-/* ================= ESTADO ================= */
+/* ===== ESTADO ===== */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 
 const MAESTRO = { user: "admin", pass: "admin" };
 let alumnos = [];
 
-/* ================= ARRANQUE ================= */
-mostrarLogin();
+/* ===== SESIÓN ===== */
+function guardarSesion(data) {
+  localStorage.setItem("sesion", JSON.stringify(data));
+}
+function borrarSesion() {
+  localStorage.removeItem("sesion");
+}
+function leerSesion() {
+  return JSON.parse(localStorage.getItem("sesion"));
+}
 
-/* ================= LOGIN ================= */
+/* ===== ARRANQUE ===== */
+init();
+
+/* ===== INIT ===== */
+async function init() {
+  await cargarAlumnos();
+  const sesion = leerSesion();
+
+  if (sesion) {
+    if (sesion.tipo === "maestro") {
+      menu.classList.remove("hidden");
+      mostrarDirectorio();
+      return;
+    }
+    if (sesion.tipo === "alumno") {
+      const a = alumnos.find(x => x.usuario === sesion.usuario);
+      if (a) {
+        mostrarAlumno(a);
+        return;
+      }
+    }
+  }
+  mostrarLogin();
+}
+
+/* ===== LOGIN ===== */
 function mostrarLogin() {
   menu.classList.add("hidden");
   app.innerHTML = `
@@ -62,7 +93,7 @@ function mostrarLogin() {
     <input id="p" type="password" placeholder="Contraseña">
     <button id="btnLogin">Entrar</button>
   `;
-  document.getElementById("btnLogin").addEventListener("click", login);
+  document.getElementById("btnLogin").onclick = login;
 }
 
 async function login() {
@@ -70,15 +101,17 @@ async function login() {
   const p = document.getElementById("p").value.trim();
 
   if (u === MAESTRO.user && p === MAESTRO.pass) {
+    guardarSesion({ tipo: "maestro" });
     menu.classList.remove("hidden");
     await cargarAlumnos();
     mostrarDirectorio();
     return;
   }
 
-  const docSnap = await db.collection("alumnos").doc(u).get();
-  if (docSnap.exists && docSnap.data().pass === p) {
-    mostrarAlumno(docSnap.data());
+  const snap = await db.collection("alumnos").doc(u).get();
+  if (snap.exists && snap.data().pass === p) {
+    guardarSesion({ tipo: "alumno", usuario: u });
+    mostrarAlumno(snap.data());
     return;
   }
 
@@ -86,23 +119,24 @@ async function login() {
 }
 
 function logout() {
+  borrarSesion();
   mostrarLogin();
 }
 
-/* ================= DATA ================= */
+/* ===== DATA ===== */
 async function cargarAlumnos() {
   const snap = await db.collection("alumnos").get();
   alumnos = snap.docs.map(d => d.data());
 }
 
-/* ================= DIRECTORIO ================= */
+/* ===== DIRECTORIO ===== */
 function mostrarDirectorio() {
   app.innerHTML = `
     <div class="card">
-      <h2>Directorio de Alumnos</h2>
+      <h2>Directorio</h2>
       <table>
         <tr><th>Nombre</th><th>Usuario</th><th>Nivel</th></tr>
-        ${alumnos.map(a=>`
+        ${alumnos.map(a => `
           <tr>
             <td>${a.nombre}</td>
             <td>${a.usuario}</td>
@@ -113,11 +147,11 @@ function mostrarDirectorio() {
   `;
 }
 
-/* ================= ALTA ================= */
+/* ===== ALTA ===== */
 function mostrarAlta() {
   app.innerHTML = `
     <div class="card">
-      <h2>Alta de Alumno</h2>
+      <h2>Alta Alumno</h2>
       <input id="ru" placeholder="Usuario">
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
@@ -125,15 +159,15 @@ function mostrarAlta() {
       <button id="btnReg">Registrar</button>
     </div>
   `;
-  document.getElementById("btnReg").addEventListener("click", registrarAlumno);
+  document.getElementById("btnReg").onclick = registrarAlumno;
 }
 
 async function registrarAlumno() {
   const alumno = {
-    usuario: document.getElementById("ru").value.trim(),
-    pass: document.getElementById("rp").value.trim(),
-    nombre: document.getElementById("rn").value.trim(),
-    nivel: document.getElementById("rl").value.trim()
+    usuario: ru.value.trim(),
+    pass: rp.value.trim(),
+    nombre: rn.value.trim(),
+    nivel: rl.value.trim()
   };
 
   if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
@@ -146,7 +180,7 @@ async function registrarAlumno() {
   mostrarDirectorio();
 }
 
-/* ================= PANEL ALUMNO ================= */
+/* ===== PANEL ALUMNO ===== */
 function mostrarAlumno(a) {
   menu.classList.add("hidden");
   app.innerHTML = `
@@ -157,14 +191,13 @@ function mostrarAlumno(a) {
       <button id="btnSalirAlumno">Salir</button>
     </div>
   `;
-  document.getElementById("btnSalirAlumno")
-    .addEventListener("click", logout);
+  document.getElementById("btnSalirAlumno").onclick = logout;
 }
 
-/* ================= MENU EVENTS ================= */
-document.getElementById("btnDir").addEventListener("click", mostrarDirectorio);
-document.getElementById("btnAlta").addEventListener("click", mostrarAlta);
-document.getElementById("btnLogout").addEventListener("click", logout);
+/* ===== MENÚ ===== */
+btnDir.onclick = mostrarDirectorio;
+btnAlta.onclick = mostrarAlta;
+btnLogout.onclick = logout;
 </script>
 
 </body>
