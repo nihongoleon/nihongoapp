@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Nihongo Admin</title>
 
-<!-- Chart.js BIEN cargado -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -35,7 +35,7 @@ input, button { padding:6px; margin-top:6px; width:100%; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
@@ -62,37 +62,45 @@ window.logout = function(){
   login();
 };
 
+await cargar();
 login();
 
+/* LOGIN */
 function login(){
+  menu.classList.add("hidden");
   appDiv.innerHTML = `
     <h2>Login</h2>
     <input id="u" placeholder="Usuario">
     <input id="p" type="password" placeholder="Contraseña">
     <button id="go">Entrar</button>
   `;
-  document.getElementById("go").onclick = async ()=>{
-    if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
+  document.getElementById("go").onclick = ()=>{
+    const user = u.value.trim();
+    const pass = p.value.trim();
+
+    if(user===MAESTRO.user && pass===MAESTRO.pass){
       menu.classList.remove("hidden");
-      await cargar();
       vista("dashboard");
       return;
     }
-    const ref = doc(db,"alumnos",u.value);
-    const snap = await getDoc(ref);
-    if(!snap.exists() || snap.data().pass!==p.value){
+
+    const alumno = alumnos.find(a => a.usuario===user && a.pass===pass);
+    if(!alumno){
       alert("Credenciales incorrectas");
       return;
     }
-    mostrarAlumno(snap.data());
+
+    mostrarAlumno(alumno);
   }
 }
 
+/* DATA */
 async function cargar(){
   const snap = await getDocs(collection(db,"alumnos"));
   alumnos = snap.docs.map(d=>d.data());
 }
 
+/* VISTAS MAESTRO */
 window.vista = function(v){
   if(v==="alumnos"){
     appDiv.innerHTML = `
@@ -135,7 +143,7 @@ window.vista = function(v){
       appDiv.innerHTML+=`
       <div class="card">
         <b>${a.nombre}</b><br>
-        Grupo Teams: ${a.teams ? `<a href="${a.teams}" target="_   Próxima clase: ${a.clase || "No asignada"}
+        Grupo Teams: ${a.teams ? `<a href="${a.teams}" target="_xima clase: ${a.clase || "No asignada"}
       </div>`;
     });
   }
@@ -154,14 +162,12 @@ window.vista = function(v){
     `;
     new Chart(document.getElementById("graf"),{
       type:"bar",
-      data:{
-        labels:["Ingresos","Egresos"],
-        datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]
-      }
+      data:{ labels:["Ingresos","Egresos"], datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]}
     });
   }
 }
 
+/* REGISTRO */
 async function registrarAlumno(){
   const a={
     usuario:ru.value,
@@ -177,6 +183,7 @@ async function registrarAlumno(){
   await cargar(); vista("alumnos");
 }
 
+/* PANEL ALUMNO */
 function mostrarAlumno(a){
   menu.classList.add("hidden");
   appDiv.innerHTML=`
