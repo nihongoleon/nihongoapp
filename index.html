@@ -1,23 +1,152 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>PRUEBA DEFINITIVA</title>
+<meta charset="UTF-8">
+<title>Nihongo – Fase 1</title>
+
+<style>
+body { font-family: Arial, sans-serif; padding: 30px; background: #f5f5f5; }
+h1, h2 { margin-bottom: 10px; }
+button { padding: 6px 10px; margin-right: 5px; }
+input { padding: 6px; width: 100%; margin-bottom: 6px; }
+nav { margin-bottom: 15px; }
+.card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+.hidden { display: none; }
+</style>
 </head>
+
 <body>
 
-<h1>PRUEBA DEFINITIVA</h1>
+<h1>Nihongo App – Fase 1</h1>
 
-<button id="btn">Haz clic</button>
+<nav id="menu" class="hidden">
+  <button onclick="mostrarDirectorio()">Directorio</button>
+  <button onclick="mostrarAlta()">Alta Alumno</button>
+  <button onclick="logout()">Salir</button>
+</nav>
 
-<p id="out"></p>
+<div id="app"></div>
 
 <script>
-  document.getElementById("btn").onclick = function () {
-    document.getElementById("out").innerText = "✅ El botón funciona";
-    alert("FUNCIONA");
+/* ===== ESTADO ===== */
+const app = document.getElementById("app");
+const menu = document.getElementById("menu");
+
+/* Usuario maestro fijo */
+const MAESTRO = { user: "admin", pass: "admin" };
+
+/* Alumnos en memoria */
+let alumnos = [];
+
+/* ===== LOGIN ===== */
+function mostrarLogin() {
+  menu.classList.add("hidden");
+  app.innerHTML = `
+    <h2>Login</h2>
+    <input id="u" placeholder="Usuario">
+    <input id="p" type="password" placeholder="Contraseña">
+    <button onclick="login()">Entrar</button>
+  `;
+}
+
+function login() {
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value.trim();
+
+  /* Maestro */
+  if (u === MAESTRO.user && p === MAESTRO.pass) {
+    menu.classList.remove("hidden");
+    mostrarDirectorio();
+    return;
+  }
+
+  /* Alumno */
+  const alumno = alumnos.find(a => a.usuario === u && a.pass === p);
+  if (alumno) {
+    mostrarAlumno(alumno);
+    return;
+  }
+
+  alert("Credenciales incorrectas");
+}
+
+function logout() {
+  mostrarLogin();
+}
+
+/* ===== DIRECTORIO ===== */
+function mostrarDirectorio() {
+  app.innerHTML = `
+    <div class="card">
+      <h2>Directorio de Alumnos</h2>
+      <table>
+        <tr>
+          <th>Nombre</th>
+          <th>Usuario</th>
+          <th>Nivel</th>
+        </tr>
+        ${alumnos.map(a => `
+          <tr>
+            <td>${a.nombre}</td>
+            <td>${a.usuario}</td>
+            <td>${a.nivel}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `;
+}
+
+/* ===== ALTA ===== */
+function mostrarAlta() {
+  app.innerHTML = `
+    <div class="card">
+      <h2>Alta de Alumno</h2>
+      <input id="ru" placeholder="Usuario">
+      <input id="rp" placeholder="Contraseña">
+      <input id="rn" placeholder="Nombre">
+      <input id="rl" placeholder="Nivel">
+      <button onclick="registrarAlumno()">Registrar</button>
+    </div>
+  `;
+}
+
+function registrarAlumno() {
+  const alumno = {
+    usuario: document.getElementById("ru").value.trim(),
+    pass: document.getElementById("rp").value.trim(),
+    nombre: document.getElementById("rn").value.trim(),
+    nivel: document.getElementById("rl").value.trim()
   };
+
+  if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
+    alert("Completa todos los campos");
+    return;
+  }
+
+  alumnos.push(alumno);
+  mostrarDirectorio();
+}
+
+/* ===== PANEL ALUMNO ===== */
+function mostrarAlumno(a) {
+  menu.classList.add("hidden");
+  app.innerHTML = `
+    <div class="card">
+      <h2>${a.nombre}</h2>
+      <p>Usuario: ${a.usuario}</p>
+      <p>Nivel: ${a.nivel}</p>
+      <button onclick="logout()">Salir</button>
+    </div>
+  `;
+}
+
+/* ===== ARRANQUE ===== */
+mostrarLogin();
 </script>
 
 </body>
 </html>
+``
