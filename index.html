@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Nihongo – Fase 1 Rescate</title>
+  <meta charset="UTF-8" />
+  <title>Nihongo – Fase 1 Estable</title>
 
   <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background: #f4f6f8; }
-    h1, h2 { margin-bottom: 10px; }
-    button { padding: 6px 10px; margin-right: 5px; }
-    input { padding: 6px; width: 100%; margin-bottom: 6px; }
-    .card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-    nav { margin-bottom: 15px; }
-    .hidden { display: none; }
+    body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
+    h1,h2 { margin-bottom:10px; }
+    nav button { margin-right:6px; padding:6px 10px; }
+    .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
+    input { padding:6px; width:100%; margin-bottom:6px; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td { border:1px solid #ccc; padding:6px; text-align:left; }
+    .hidden { display:none; }
   </style>
 </head>
 
@@ -30,64 +29,74 @@
 <div id="app"></div>
 
 <script type="module">
-  // ================= FIREBASE =================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+  /* ===== FIREBASE ===== */
   const firebaseConfig = {
     apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
     authDomain: "nihongoapp-85125.firebaseapp.com",
-    projectId: "nihongoapp-85125"
+    projectId: "nihongoapp-85125",
   };
 
-  const appFirebase = initializeApp(firebaseConfig);
-  const db = getFirestore(appFirebase);
+  const fb = initializeApp(firebaseConfig);
+  const db = getFirestore(fb);
 
-  // ================= ESTADO =================
+  /* ===== ESTADO ===== */
   const appDiv = document.getElementById("app");
   const menu = document.getElementById("menu");
+
   const MAESTRO = { user: "admin", pass: "admin" };
   let alumnos = [];
 
-  // ================= INICIO =================
+  /* ===== INICIO ===== */
   mostrarLogin();
 
-  // ================= LOGIN =================
-  function mostrarLogin() {
+  /* ===== LOGIN ===== */
+  window.mostrarLogin = function () {
     menu.classList.add("hidden");
     appDiv.innerHTML = `
-      <h2>Login Maestro</h2>
+      <h2>Login</h2>
       <input id="u" placeholder="Usuario">
       <input id="p" type="password" placeholder="Contraseña">
-      <button id="go">Entrar</button>
+      <button onclick="login()">Entrar</button>
     `;
-    document.getElementById("go").onclick = manejarLogin;
-  }
+  };
 
-  function manejarLogin() {
-    const user = document.getElementById("u").value.trim();
-    const pass = document.getElementById("p").value.trim();
+  window.login = async function () {
+    const u = document.getElementById("u").value.trim();
+    const p = document.getElementById("p").value.trim();
 
-    if (user === MAESTRO.user && pass === MAESTRO.pass) {
+    // Maestro
+    if (u === MAESTRO.user && p === MAESTRO.pass) {
       menu.classList.remove("hidden");
-      cargarAlumnos().then(mostrarDirectorio);
-    } else {
-      alert("Credenciales incorrectas");
+      await cargarAlumnos();
+      mostrarDirectorio();
+      return;
     }
-  }
 
-  function logout() {
+    // Alumno
+    const snap = await getDoc(doc(db, "alumnos", u));
+    if (snap.exists() && snap.data().pass === p) {
+      mostrarAlumno(snap.data());
+      return;
+    }
+
+    alert("Credenciales incorrectas");
+  };
+
+  window.logout = function () {
     mostrarLogin();
-  }
+  };
 
-  // ================= DATA =================
+  /* ===== DATA ===== */
   async function cargarAlumnos() {
     const snap = await getDocs(collection(db, "alumnos"));
     alumnos = snap.docs.map(d => d.data());
   }
 
-  // ================= DIRECTORIO =================
-  function mostrarDirectorio() {
+  /* ===== DIRECTORIO ===== */
+  window.mostrarDirectorio = function () {
     appDiv.innerHTML = `
       <div class="card">
         <h2>Directorio de Alumnos</h2>
@@ -107,10 +116,10 @@
         </table>
       </div>
     `;
-  }
+  };
 
-  // ================= ALTA =================
-  function mostrarAlta() {
+  /* ===== ALTA ===== */
+  window.mostrarAlta = function () {
     appDiv.innerHTML = `
       <div class="card">
         <h2>Alta de Alumno</h2>
@@ -118,18 +127,17 @@
         <input id="rp" placeholder="Contraseña">
         <input id="rn" placeholder="Nombre">
         <input id="rl" placeholder="Nivel">
-        <button id="reg">Registrar</button>
+        <button onclick="registrarAlumno()">Registrar</button>
       </div>
     `;
-    document.getElementById("reg").onclick = registrarAlumno;
-  }
+  };
 
-  async function registrarAlumno() {
+  window.registrarAlumno = async function () {
     const alumno = {
       usuario: document.getElementById("ru").value.trim(),
       pass: document.getElementById("rp").value.trim(),
       nombre: document.getElementById("rn").value.trim(),
-      nivel: document.getElementById("rl").value.trim()
+      nivel: document.getElementById("rl").value.trim(),
     };
 
     if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
@@ -140,8 +148,20 @@
     await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
     await cargarAlumnos();
     mostrarDirectorio();
-  }
+  };
 
+  /* ===== PANEL ALUMNO ===== */
+  function mostrarAlumno(a) {
+    menu.classList.add("hidden");
+    appDiv.innerHTML = `
+      <div class="card">
+        <h2>${a.nombre}</h2>
+        <p>Usuario: ${a.usuario}</p>
+        <p>Nivel: ${a.nivel}</p>
+        <button onclick="logout()">Salir</button>
+      </div>
+    `;
+  }
 </script>
 
 </body>
