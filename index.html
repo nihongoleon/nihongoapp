@@ -1,170 +1,24 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Nihongo – Fase 1 Estable</title>
+<!DOCTYPE html>button>
 
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
-    h1,h2 { margin-bottom:10px; }
-    nav button { margin-right:6px; padding:6px 10px; }
-    .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
-    input { padding:6px; width:100%; margin-bottom:6px; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th,td { border:1px solid #ccc; padding:6px; text-align:left; }
-    .hidden { display:none; }
-  </style>
-</head>
+<div id="out"></div>
 
-<body>
+<script>
+  console.log("JS cargó");
 
-<h1>Nihongo App – Fase 1</h1>
-
-<nav id="menu" class="hidden">
-  <button id="btnDir">Directorio</button>
-  <button id="btnAlta">Alta Alumno</button>
-  <button id="btnLogout">Salir</button>
-</nav>
-
-<div id="app"></div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // ===== FIREBASE =====
-  const firebaseConfig = {
-    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-    authDomain: "nihongoapp-85125.firebaseapp.com",
-    projectId: "nihongoapp-85125"
+  document.getElementById("btn").onclick = function () {
+    document.getElementById("out").innerText = "✅ JavaScript está funcionando";
+    alert("CLICK FUNCIONA");
   };
-
-  const appFirebase = initializeApp(firebaseConfig);
-  const db = getFirestore(appFirebase);
-
-  // ===== ESTADO =====
-  const appDiv = document.getElementById("app");
-  const menu = document.getElementById("menu");
-
-  const MAESTRO = { user: "admin", pass: "admin" };
-  let alumnos = [];
-
-  // ===== FUNCIONES =====
-
-  async function cargarAlumnos() {
-    const snap = await getDocs(collection(db, "alumnos"));
-    alumnos = snap.docs.map(d => d.data());
-  }
-
-  function mostrarLogin() {
-    menu.classList.add("hidden");
-    appDiv.innerHTML = `
-      <h2>Login</h2>
-      <input id="u" placeholder="Usuario">
-      <input id="p" type="password" placeholder="Contraseña">
-      <button id="go">Entrar</button>
-    `;
-
-    document.getElementById("go").onclick = login;
-  }
-
-  async function login() {
-    const u = document.getElementById("u").value.trim();
-    const p = document.getElementById("p").value.trim();
-
-    // Maestro
-    if (u === MAESTRO.user && p === MAESTRO.pass) {
-      menu.classList.remove("hidden");
-      await cargarAlumnos();
-      mostrarDirectorio();
-      return;
-    }
-
-    // Alumno
-    const snap = await getDoc(doc(db, "alumnos", u));
-    if (snap.exists() && snap.data().pass === p) {
-      mostrarAlumno(snap.data());
-      return;
-    }
-
-    alert("Credenciales incorrectas");
-  }
-
-  function logout() {
-    mostrarLogin();
-  }
-
-  function mostrarDirectorio() {
-    appDiv.innerHTML = `
-      <div class="card">
-        <h2>Directorio de Alumnos</h2>
-        <table>
-          <tr><th>Nombre</th><th>Usuario</th><th>Nivel</th></tr>
-          ${alumnos.map(a => `
-            <tr>
-              <td>${a.nombre}</td>
-              <td>${a.usuario}</td>
-              <td>${a.nivel}</td>
-            </tr>
-          `).join("")}
-        </table>
-      </div>
-    `;
-  }
-
-  function mostrarAlta() {
-    appDiv.innerHTML = `
-      <div class="card">
-        <h2>Alta de Alumno</h2>
-        <input id="ru" placeholder="Usuario">
-        <input id="rp" placeholder="Contraseña">
-        <input id="rn" placeholder="Nombre">
-        <input id="rl" placeholder="Nivel">
-        <button id="reg">Registrar</button>
-      </div>
-    `;
-    document.getElementById("reg").onclick = registrarAlumno;
-  }
-
-  async function registrarAlumno() {
-    const alumno = {
-      usuario: document.getElementById("ru").value.trim(),
-      pass: document.getElementById("rp").value.trim(),
-      nombre: document.getElementById("rn").value.trim(),
-      nivel: document.getElementById("rl").value.trim()
-    };
-
-    if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
-      alert("Completa todos los campos");
-      return;
-    }
-
-    await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
-    await cargarAlumnos();
-    mostrarDirectorio();
-  }
-
-  function mostrarAlumno(a) {
-    menu.classList.add("hidden");
-    appDiv.innerHTML = `
-      <div class="card">
-        <h2>${a.nombre}</h2>
-        <p>Usuario: ${a.usuario}</p>
-        <p>Nivel: ${a.nivel}</p>
-        <button id="btnSalirAlumno">Salir</button>
-      </div>
-    `;
-    document.getElementById("btnSalirAlumno").onclick = logout;
-  }
-
-  // ===== EVENTOS MENU =====
-  document.getElementById("btnDir").onclick = mostrarDirectorio;
-  document.getElementById("btnAlta").onclick = mostrarAlta;
-  document.getElementById("btnLogout").onclick = logout;
-
-  // ===== ARRANQUE CORRECTO =====
-  mostrarLogin();
 </script>
 
 </body>
 </html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Prueba JS</title>
+</head>
+<body>
+
+<h1>Prueba de JavaScript</h1>
+
