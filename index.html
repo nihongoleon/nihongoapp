@@ -31,8 +31,9 @@ th, td { border:1px solid #ccc; padding:6px; }
 
 <div id="app"></div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- ✅ FIREBASE BIEN CARGADO -->
+https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.jsscript>
+https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.jsscript>
 
 <script>
 firebase.initializeApp({
@@ -40,21 +41,24 @@ firebase.initializeApp({
   authDomain: "nihongoapp-85125.firebaseapp.com",
   projectId: "nihongoapp-85125"
 });
+
 const db = firebase.firestore();
 
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
+
 const MAESTRO = { user:"admin", pass:"admin" };
+let alumnos = [];
+let cuotas = [];
 
-let alumnos=[], cuotas=[];
-
-/* ---------------- SESION ---------------- */
+/* ---------- SESIÓN ---------- */
 document.addEventListener("DOMContentLoaded", init);
 
 async function init(){
   await cargarAlumnos();
   await cargarCuotas();
   const sesion = JSON.parse(localStorage.getItem("sesion"));
+
   if(sesion){
     if(sesion.tipo==="maestro"){
       menu.classList.remove("hidden");
@@ -69,6 +73,7 @@ async function init(){
   mostrarLogin();
 }
 
+/* ---------- LOGIN ---------- */
 function mostrarLogin(){
   menu.classList.add("hidden");
   app.innerHTML=`
@@ -80,19 +85,23 @@ function mostrarLogin(){
 }
 
 async function login(){
-  const u=u.value.trim(), p=p.value.trim();
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value.trim();
+
   if(u===MAESTRO.user && p===MAESTRO.pass){
     localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
     menu.classList.remove("hidden");
     mostrarDirectorio();
     return;
   }
+
   const snap = await db.collection("alumnos").doc(u).get();
   if(snap.exists && snap.data().pass===p){
     localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u}));
     mostrarAlumno(snap.data());
     return;
   }
+
   alert("Credenciales incorrectas");
 }
 
@@ -101,17 +110,18 @@ function logout(){
   location.reload();
 }
 
-/* ---------------- DATA ---------------- */
+/* ---------- DATA ---------- */
 async function cargarAlumnos(){
   const snap = await db.collection("alumnos").get();
   alumnos = snap.docs.map(d=>d.data());
 }
+
 async function cargarCuotas(){
   const snap = await db.collection("cuotas").get();
   cuotas = snap.docs.map(d=>d.data());
 }
 
-/* ---------------- DIRECTORIO ---------------- */
+/* ---------- DIRECTORIO ---------- */
 function mostrarDirectorio(){
   app.innerHTML=`
     <div class="card">
@@ -125,7 +135,7 @@ function mostrarDirectorio(){
     </div>`;
 }
 
-/* ---------------- ALTA ---------------- */
+/* ---------- ALTA ---------- */
 function mostrarAlta(){
   app.innerHTML=`
     <div class="card">
@@ -151,7 +161,7 @@ async function registrarAlumno(){
   mostrarDirectorio();
 }
 
-/* ---------------- CUOTAS ---------------- */
+/* ---------- CUOTAS ---------- */
 function mostrarCuotas(){
   app.innerHTML=`
     <div class="card">
@@ -159,8 +169,7 @@ function mostrarCuotas(){
       <input id="cn" placeholder="Nombre">
       <input id="cm" type="number" placeholder="Monto">
       <button id="btnCuota">Agregar</button>
-      <ul>${cuotas.map(c=>`<li>${c.nombre} - $${c.monto}</li>`).join("")}</ul>
-    </div>`;
+      <ul>${cuotas.map(c=>`<li>${c.nombre} - $${c.monto}</li>`).join("")}</ul>`;
   btnCuota.onclick = registrarCuota;
 }
 
@@ -171,7 +180,7 @@ async function registrarCuota(){
   mostrarCuotas();
 }
 
-/* ---------------- COBRANZA ---------------- */
+/* ---------- COBRANZA ---------- */
 function mostrarCobranza(){
   app.innerHTML = alumnos.map(a=>`
     <div class="card">
@@ -192,7 +201,7 @@ async function pagar(usuario){
   await cargarAlumnos();
 }
 
-/* ---------------- PANEL ALUMNO ---------------- */
+/* ---------- PANEL ALUMNO ---------- */
 function mostrarAlumno(a){
   menu.classList.add("hidden");
   app.innerHTML=`
@@ -200,12 +209,11 @@ function mostrarAlumno(a){
       <h2>${a.nombre}</h2>
       <p>Nivel: ${a.nivel}</p>
       <p>Pagos: ${(a.pagos||[]).length}</p>
-      <button id="btnSalirAlumno">Salir</button>
-    </div>`;
+      <button id="btnSalirAlumno">Salir</button>`;
   btnSalirAlumno.onclick = logout;
 }
 
-/* ---------------- MENU ---------------- */
+/* ---------- MENÚ ---------- */
 btnDir.onclick = mostrarDirectorio;
 btnAlta.onclick = mostrarAlta;
 btnCuotas.onclick = mostrarCuotas;
