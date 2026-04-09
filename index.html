@@ -1,161 +1,178 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Nihongo App</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background:#f7f7f7; }
-    h1,h2 { margin-bottom: 10px; }
-    .card { background:#fff; border:1px solid #ccc; padding:15px; margin-bottom:15px; border-radius:6px; }
-    button { padding:8px 12px; margin-top:8px; }
-    input { padding:6px; margin:4px 0; width:100%; }
-    .warning { color:#b00020; font-weight:bold; }
-    .ok { color:green; font-weight:bold; }
-  </style>
-</head>
-<body>
+<!DOCTYPE html><  <button onclick="vista('dashboard')">Dashboard</button>
+  <button onclick="logout()">Salir</button>
+</nav>
 
-<h1>Nihongo App</h1>
 <div id="app">Cargando…</div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import {
-    getFirestore, collection, getDocs, doc, getDoc, setDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  /* ---------- CONFIGURACIÓN FIREBASE ---------- */
-  const firebaseConfig = {
-    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-    authDomain: "nihongoapp-85125.firebaseapp.com",
-    projectId: "nihongoapp-85125",
-    storageBucket: "nihongoapp-85125.firebasestorage.app",
-    messagingSenderId: "1051487833491",
-    appId: "1:1051487833491:web:8b8db6c2cf4fd809e8ac66"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+  authDomain: "nihongoapp-85125.firebaseapp.com",
+  projectId: "nihongoapp-85125",
+};
 
-  const appFirebase = initializeApp(firebaseConfig);
-  const db = getFirestore(appFirebase);
-  const app = document.getElementById("app");
+const fb = initializeApp(firebaseConfig);
+const db = getFirestore(fb);
+const app = document.getElementById("app");
+const menu = document.getElementById("menu");
 
-  /* ---------- CREDENCIALES MAESTRO ---------- */
-  const MAESTRO = { usuario: "admin", pass: "admin" };
+const MAESTRO = { user: "admin", pass: "admin" };
+let alumnos = [];
 
-  /* ---------- UTILIDADES ---------- */
-  function hoy() {
-    return new Date().toISOString().slice(0,10);
+function hoy(){ return new Date().toISOString().slice(0,10); }
+function sumar30(){ let d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().slice(0,10); }
+function activo(f){ return new Date()<=new Date(f); }
+function mesActual(fecha){ return fecha.slice(0,7)===hoy().slice(0,7); }
+
+/* LOGIN */
+login();
+function login(){
+  app.innerHTML = `
+    <h2>Login</h2>
+    <input id="u" placeholder="Usuario">
+    <input id="p" type="password" placeholder="Contraseña">
+    <button id="go">Entrar</button>
+  `;
+  document.getElementById("go").onclick = async ()=>{
+    if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
+      menu.classList.remove("hidden");
+      cargar();
+      vista("dashboard");
+      return;
+    }
+    const ref = doc(db,"alumnos",u.value);
+    const snap = await getDoc(ref);
+    if(!snap.exists() || snap.data().pass!==p.value){
+      alert("Credenciales incorrectas");
+      return;
+    }
+    mostrarAlumno(snap.data());
   }
+}
 
-  function sumar30Dias() {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().slice(0,10);
-  }
+function logout(){ location.reload(); }
 
-  function activo(hasta) {
-    return new Date() <= new Date(hasta);
-  }
+/* CARGA */
+async function cargar(){
+  const snap = await getDocs(collection(db,"alumnos"));
+  alumnos = snap.docs.map(d=>d.data());
+}
 
-  /* ---------- INICIO ---------- */
-  mostrarLogin();
-
-  /* ---------- LOGIN ---------- */
-  function mostrarLogin() {
+/* VISTAS */
+window.vista = function(v){
+  if(v==="alumnos"){
     app.innerHTML = `
-      <h2>Login</h2>
-      <input id="user" placeholder="Usuario">
-      <input id="pass" type="password" placeholder="Contraseña">
-      <button id="entrar">Entrar</button>
-    `;
-
-    document.getElementById("entrar").onclick = async () => {
-      const u = user.value.trim();
-      const p = pass.value.trim();
-
-      if (u === MAESTRO.usuario && p === MAESTRO.pass) {
-        mostrarPanelMaestro();
-        return;
-      }
-
-      const ref = doc(db, "alumnos", u);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        alert("Alumno no encontrado");
-        return;
-      }
-
-      const alumno = snap.data();
-      if (alumno.pass !== p) {
-        alert("Contraseña incorrecta");
-        return;
-      }
-
-      mostrarPanelAlumno(alumno);
-    };
-  }
-
-  /* ---------- PANEL MAESTRO ---------- */
-  async function mostrarPanelMaestro() {
-    const snap = await getDocs(collection(db, "alumnos"));
-    app.innerHTML = "<h2>Panel del Maestro</h2>";
-
-    snap.docs.forEach(d => {
-      const a = d.data();
-      const div = document.createElement("div");
-      div.className = "card";
-
-      div.innerHTML = `
-        <p><b>${a.nombre}</b> (${a.usuario})</p>
-        <p>Nivel: ${a.nivel}</p>
-        <p>Estado: ${activo(a.accesoValidoHasta) ? "<span class='ok'>Activo ✅</span>" : "<span class='warning'>Suspendido 🔒</span>"}</p>
-        <p>Acceso válido hasta: ${a.accesoValidoHasta}</p>
-        <button>Registrar pago (+30 días)</button>
-      `;
-
-      div.querySelector("button").onclick = async () => {
-        a.accesoValidoHasta = sumar30Dias();
-        a.pagos.push({ fecha: hoy(), monto: 1200 });
-        await setDoc(doc(db, "alumnos", a.usuario), a);
-        mostrarPanelMaestro();
-      };
-
-      app.appendChild(div);
-    });
-
-    const salir = document.createElement("button");
-    salir.textContent = "Salir";
-    salir.onclick = mostrarLogin;
-    app.appendChild(salir);
-  }
-
-  /* ---------- PANEL ALUMNO ---------- */
-  function mostrarPanelAlumno(a) {
-    app.innerHTML = `
-      <h2>Panel del Alumno</h2>
       <div class="card">
-        <p><b>${a.nombre}</b></p>
-        <p>Nivel: ${a.nivel}</p>
-        <p>Acceso válido hasta: ${a.accesoValidoHasta}</p>
-        <p>
-          Estado:
-          ${activo(a.accesoValidoHasta)
-            ? "<span class='ok'>Activo ✅</span>"
-            : "<span class='warning'>Suspendido 🔒</span>"}
-        </p>
-        ${
-          activo(a.accesoValidoHasta)
-          ? ""
-          : "<p class='warning'>Tu cuenta está suspendida por pagos pendientes. Contacta a tu maestro.</p>"
-        }
+        <h3>Registrar Alumno</h3>
+        <input id="ru" placeholder="Usuario">
+        <input id="rp" placeholder="Contraseña">
+        <input id="rn" placeholder="Nombre">
+        <input id="rl" placeholder="Nivel">
+        <button onclick="registrarAlumno()">Registrar</button>
       </div>
-      <button id='logout'>Salir</button>
     `;
-
-    document.getElementById("logout").onclick = mostrarLogin;
   }
-</script>
 
+  if(v==="cobranza"){
+    app.innerHTML="";
+    alumnos.forEach(a=>{
+      const d=document.createElement("div");
+      d.className="card";
+      d.innerHTML=`
+        <b>${a.nombre}</b><br>
+        Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}<br>
+        Vence: ${a.vencimiento}
+        <button>Registrar Pago</button>
+      `;
+      d.querySelector("button").onclick=async()=>{
+        a.vencimiento=sumar30();
+        a.pagos.push({fecha:hoy(),monto:1200});
+        await setDoc(doc(db,"alumnos",a.usuario),a);
+        cargar(); vista("cobranza");
+      }
+      app.appendChild(d);
+    });
+  }
+
+  if(v==="agenda"){
+    app.innerHTML="";
+    alumnos.forEach(a=>{
+      app.innerHTML+=`
+      <div class=card>
+        <b>${a.nombre}</b><br>
+        Grupo Teams: <a href="${a.teams||'#'}"{a.clase||"No asignada"}
+      </div>`;
+    });
+  }
+
+  if(v==="dashboard"){
+    let ing=0, eg=0;
+    alumnos.forEach(a=>a.pagos.forEach(p=>{ if(mesActual(p.fecha)) ing+=p.monto; }));
+    const balance=ing-eg;
+    app.innerHTML=`
+      <div class="card">
+        <h2>Ingresos: $${ing}</h2>
+        <h2>Egresos: $${eg}</h2>
+        <h1 class="${balance>=0?'ok':'bad'}">Balance: $${balance}</h1>
+        <canvas id="graf"></canvas>
+      </div>
+    `;
+    new Chart(document.getElementById("graf"),{
+      type:"bar",
+      data:{ labels:["Ingresos","Egresos"], datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]}
+    });
+  }
+}
+
+window.registrarAlumno = async function(){
+  const a={
+    usuario:ru.value, pass:rp.value, nombre:rn.value,
+    nivel:rl.value, vencimiento:sumar30(), pagos:[]
+  };
+  await setDoc(doc(db,"alumnos",ru.value),a);
+  cargar(); vista("alumnos");
+}
+
+function mostrarAlumno(a){
+  app.innerHTML=`
+    <div class="card">
+      <h2>${a.nombre}</h2>
+      Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}<br>
+      ${activo(a.vencimiento)?'':'<p class=bad>Cuenta suspendida por pagos pendientes</p>'}
+      <button onclick="logout()">Salir</button>
+    </div>
+  `;
+}
+
+</script>
 </body>
 </html>
 ``
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Nihongo Admin</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { font-family: Arial; background:#f4f6f8; padding:30px; }
+nav button { margin-right:8px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
+input, button { padding:6px; margin-top:5px; width:100%; }
+.ok { color:green; font-weight:bold; }
+.bad { color:red; font-weight:bold; }
+.hidden { display:none; }
+</style>
+</head>
+
+<body>
+
+<h1>Nihongo App</h1>
+<nav id="menu" class="hidden">
+  <button onclick="vista('alumnos')">Alumnos</button>
+  <button onclick="vista('cobranza')">Cobranza</button>
+  <button onclick="vista('agenda')">Agenda</button>
