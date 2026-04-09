@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Nihongo Admin</title>
 
-<!-- Chart.js CORRECTAMENTE CARGADO -->
-https://cdn.jsdelivr.net/npm/chart.jsscript>
+<!-- Chart.js BIEN cargado -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
@@ -62,8 +62,8 @@ window.logout = function(){
   login();
 };
 
-/* LOGIN */
 login();
+
 function login(){
   appDiv.innerHTML = `
     <h2>Login</h2>
@@ -135,8 +135,7 @@ window.vista = function(v){
       appDiv.innerHTML+=`
       <div class="card">
         <b>${a.nombre}</b><br>
-        Grupo Teams: ${a.teams ? `${a.teams}Abrir</a>` : "No asignado"}<br>
-        Próxima clase: ${a.clase || "No asignada"}
+        Grupo Teams: ${a.teams ? `<a href="${a.teams}" target="_   Próxima clase: ${a.clase || "No asignada"}
       </div>`;
     });
   }
@@ -155,8 +154,8 @@ window.vista = function(v){
     `;
     new Chart(document.getElementById("graf"),{
       type:"bar",
-      data:{ 
-        labels:["Ingresos","Egresos"], 
+      data:{
+        labels:["Ingresos","Egresos"],
         datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]
       }
     });
