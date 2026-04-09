@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Nihongo Admin</title>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- ✅ Chart.js CORRECTAMENTE cargado -->
+https://cdn.jsdelivr.net/npm/chart.jsscript>
 
 <style>
 body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
@@ -62,10 +62,9 @@ window.logout = function(){
   login();
 };
 
-await cargar();
 login();
 
-/* LOGIN */
+/* ========= LOGIN ========= */
 function login(){
   menu.classList.add("hidden");
   appDiv.innerHTML = `
@@ -74,33 +73,31 @@ function login(){
     <input id="p" type="password" placeholder="Contraseña">
     <button id="go">Entrar</button>
   `;
-  document.getElementById("go").onclick = ()=>{
-    const user = u.value.trim();
-    const pass = p.value.trim();
-
-    if(user===MAESTRO.user && pass===MAESTRO.pass){
+  document.getElementById("go").onclick = async ()=>{
+    if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
       menu.classList.remove("hidden");
+      await cargar();
       vista("dashboard");
       return;
     }
-
-    const alumno = alumnos.find(a => a.usuario===user && a.pass===pass);
+    const alumnosRef = await getDocs(collection(db,"alumnos"));
+    const alumno = alumnosRef.docs.map(d=>d.data())
+      .find(a=>a.usuario===u.value && a.pass===p.value);
     if(!alumno){
       alert("Credenciales incorrectas");
       return;
     }
-
     mostrarAlumno(alumno);
   }
 }
 
-/* DATA */
+/* ========= DATA ========= */
 async function cargar(){
   const snap = await getDocs(collection(db,"alumnos"));
   alumnos = snap.docs.map(d=>d.data());
 }
 
-/* VISTAS MAESTRO */
+/* ========= VISTAS MAESTRO ========= */
 window.vista = function(v){
   if(v==="alumnos"){
     appDiv.innerHTML = `
@@ -143,7 +140,8 @@ window.vista = function(v){
       appDiv.innerHTML+=`
       <div class="card">
         <b>${a.nombre}</b><br>
-        Grupo Teams: ${a.teams ? `<a href="${a.teams}" target="_xima clase: ${a.clase || "No asignada"}
+        Grupo Teams: ${a.teams ? `${a.teams}Abrir</a>` : "No asignado"}<br>
+        Próxima clase: ${a.clase || "No asignada"}
       </div>`;
     });
   }
@@ -162,12 +160,15 @@ window.vista = function(v){
     `;
     new Chart(document.getElementById("graf"),{
       type:"bar",
-      data:{ labels:["Ingresos","Egresos"], datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]}
+      data:{
+        labels:["Ingresos","Egresos"],
+        datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]
+      }
     });
   }
 }
 
-/* REGISTRO */
+/* ========= REGISTRO ========= */
 async function registrarAlumno(){
   const a={
     usuario:ru.value,
@@ -183,7 +184,7 @@ async function registrarAlumno(){
   await cargar(); vista("alumnos");
 }
 
-/* PANEL ALUMNO */
+/* ========= PANEL ALUMNO ========= */
 function mostrarAlumno(a){
   menu.classList.add("hidden");
   appDiv.innerHTML=`
