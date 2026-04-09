@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – UI Estable</title>
+<title>Nihongo – Fase 2</title>
 
 <style>
-body { font-family: Arial, sans-serif; padding: 30px; background: #f5f5f5; }
+body { font-family: Arial, sans-serif; padding: 30px; background:#f5f5f5; }
 h1,h2 { margin-bottom: 10px; }
 nav { margin-bottom: 15px; }
 button { padding: 6px 10px; margin-right: 5px; }
@@ -19,7 +19,7 @@ th, td { border: 1px solid #ccc; padding: 6px; }
 
 <body>
 
-<h1>Nihongo App</h1>
+<h1>Nihongo App – Fase 2</h1>
 
 <nav id="menu" class="hidden">
   <button onclick="mostrarDirectorio()">Directorio</button>
@@ -29,41 +29,58 @@ th, td { border: 1px solid #ccc; padding: 6px; }
 
 <div id="app"></div>
 
-<script>
-/* ===== ESTADO ===== */
-var app = document.getElementById("app");
-var menu = document.getElementById("menu");
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, doc, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-var MAESTRO = { user: "admin", pass: "admin" };
-var alumnos = [];
+/* ===== Firebase ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+  authDomain: "nihongoapp-85125.firebaseapp.com",
+  projectId: "nihongoapp-85125"
+};
+const appFb = initializeApp(firebaseConfig);
+const db = getFirestore(appFb);
 
-/* ===== LOGIN ===== */
+/* ===== Estado ===== */
+const app = document.getElementById("app");
+const menu = document.getElementById("menu");
+const MAESTRO = { user: "admin", pass: "admin" };
+let alumnos = [];
+
+/* ===== Arranque ===== */
+mostrarLogin();
+
+/* ===== Login ===== */
 function mostrarLogin() {
   menu.classList.add("hidden");
   app.innerHTML = `
     <h2>Login</h2>
     <input id="u" placeholder="Usuario">
     <input id="p" type="password" placeholder="Contraseña">
-    <button onclick="login()">Entrar</button>
+    <button id="go">Entrar</button>
   `;
+  document.getElementById("go").onclick = login;
 }
 
-function login() {
-  var u = document.getElementById("u").value.trim();
-  var p = document.getElementById("p").value.trim();
+async function login() {
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value.trim();
 
+  // Maestro
   if (u === MAESTRO.user && p === MAESTRO.pass) {
     menu.classList.remove("hidden");
+    await cargarAlumnos();
     mostrarDirectorio();
     return;
   }
 
-  var alumno = alumnos.find(function(a){
-    return a.usuario === u && a.pass === p;
-  });
-
-  if (alumno) {
-    mostrarAlumno(alumno);
+  // Alumno
+  const snap = await getDoc(doc(db, "alumnos", u));
+  if (snap.exists() && snap.data().pass === p) {
+    mostrarAlumno(snap.data());
     return;
   }
 
@@ -74,26 +91,32 @@ function logout() {
   mostrarLogin();
 }
 
-/* ===== DIRECTORIO ===== */
+/* ===== Data ===== */
+async function cargarAlumnos() {
+  const snap = await getDocs(collection(db, "alumnos"));
+  alumnos = snap.docs.map(d => d.data());
+}
+
+/* ===== Directorio ===== */
 function mostrarDirectorio() {
   app.innerHTML = `
     <div class="card">
       <h2>Directorio de Alumnos</h2>
       <table>
         <tr><th>Nombre</th><th>Usuario</th><th>Nivel</th></tr>
-        ${alumnos.map(function(a){
-          return `<tr>
+        ${alumnos.map(a => `
+          <tr>
             <td>${a.nombre}</td>
             <td>${a.usuario}</td>
             <td>${a.nivel}</td>
-          </tr>`;
-        }).join("")}
+          </tr>
+        `).join("")}
       </table>
     </div>
   `;
 }
 
-/* ===== ALTA ===== */
+/* ===== Alta ===== */
 function mostrarAlta() {
   app.innerHTML = `
     <div class="card">
@@ -102,13 +125,14 @@ function mostrarAlta() {
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <input id="rl" placeholder="Nivel">
-      <button onclick="registrarAlumno()">Registrar</button>
+      <button id="reg">Registrar</button>
     </div>
   `;
+  document.getElementById("reg").onclick = registrarAlumno;
 }
 
-function registrarAlumno() {
-  var alumno = {
+async function registrarAlumno() {
+  const alumno = {
     usuario: document.getElementById("ru").value.trim(),
     pass: document.getElementById("rp").value.trim(),
     nombre: document.getElementById("rn").value.trim(),
@@ -120,11 +144,12 @@ function registrarAlumno() {
     return;
   }
 
-  alumnos.push(alumno);
+  await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
+  await cargarAlumnos();
   mostrarDirectorio();
 }
 
-/* ===== PANEL ALUMNO ===== */
+/* ===== Panel Alumno ===== */
 function mostrarAlumno(a) {
   menu.classList.add("hidden");
   app.innerHTML = `
@@ -136,11 +161,7 @@ function mostrarAlumno(a) {
     </div>
   `;
 }
-
-/* ===== ARRANQUE ===== */
-mostrarLogin();
 </script>
 
 </body>
 </html>
-``
