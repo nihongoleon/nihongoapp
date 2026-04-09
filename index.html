@@ -6,10 +6,18 @@
 </head>
 <body>
 
-<h1>PRUEBA DEFINITIVA ACTUALIZADA</h1>
+<h1>PRUEBA DEFINITIVA</h1>
 
-<button onclick="alert('FUNCIONA')">BOTÓN VISIBLE</button>
+<button id="btn">Haz clic</button>
+
+<p id="out"></p>
+
+<script>
+  document.getElementById("btn").onclick = function () {
+    document.getElementById("out").innerText = "✅ El botón funciona";
+    alert("FUNCIONA");
+  };
+</script>
 
 </body>
 </html>
-``
