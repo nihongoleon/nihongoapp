@@ -1,10 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Nihongo Admin</title>
-
-<!-- Chart.js BIEN CARGADO -->
+<!DOCTYPE html><!DOCTYPEAMENTE CARGADO -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -24,91 +18,9 @@ input, button { padding:6px; margin-top:6px; width:100%; }
 <h1>Nihongo App</h1>
 
 <nav id="menu" class="hidden">
-  <button onclick="vista('alumnos')">Alumnos</button>
-  <button onclick="vista('cobranza')">Cobranza</button>
-  <button onclick="vista('agenda')">Agenda</button>
-  <button onclick="vista('dashboard')">Dashboard</button>
-  <button onclick="logout()">Salir</button>
-</nav>
 
-<div id="app">Cargando…</div>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Nihongo Admin</title>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-  authDomain: "nihongoapp-85125.firebaseapp.com",
-  projectId: "nihongoapp-85125"
-};
-
-const fb = initializeApp(firebaseConfig);
-const db = getFirestore(fb);
-
-const app = document.getElementById("app");
-const menu = document.getElementById("menu");
-
-const MAESTRO = { user: "admin", pass: "admin" };
-let alumnos = [];
-
-function hoy(){ return new Date().toISOString().slice(0,10); }
-function sumar30(){ let d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().slice(0,10); }
-function activo(f){ return new Date()<=new Date(f); }
-function mesActual(f){ return f && f.startsWith(hoy().slice(0,7)); }
-
-login();
-
-function login(){
-  menu.classList.add("hidden");
-  app.innerHTML = `
-    <h2>Login</h2>
-    <input id="u" placeholder="Usuario">
-    <input id="p" type="password" placeholder="Contraseña">
-    <button id="go">Entrar</button>
-  `;
-  document.getElementById("go").onclick = async ()=>{
-    if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
-      menu.classList.remove("hidden");
-      await cargar();
-      vista("dashboard");
-      return;
-    }
-    const ref = doc(db,"alumnos",u.value);
-    const snap = await getDoc(ref);
-    if(!snap.exists() || snap.data().pass!==p.value){
-      alert("Credenciales incorrectas");
-      return;
-    }
-    mostrarAlumno(snap.data());
-  }
-}
-
-function logout(){ location.reload(); }
-
-async function cargar(){
-  const snap = await getDocs(collection(db,"alumnos"));
-  alumnos = snap.docs.map(d=>d.data());
-}
-
-window.vista = function(v){
-  if(v==="alumnos"){
-    app.innerHTML = `
-      <div class="card">
-        <h3>Registrar Alumno</h3>
-        <input id="ru" placeholder="Usuario">
-        <input id="rp" placeholder="Contraseña">
-        <input id="rn" placeholder="Nombre">
-        <input id="rl" placeholder="Nivel">
-        <button id="reg">Registrar</button>
-      </div>
-    `;
-    document.getElementById("reg").onclick = registrarAlumno;
-  }
-
-  if(v==="cobranza"){
-    app.innerHTML="";
-    alumnos.forEach(a=>{
-      const d=document.createElement("div");
-      d.className="card";
-      d.innerHTML=`
