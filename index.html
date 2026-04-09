@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 2</title>
+<title>Nihongo – Fase 2 Estable</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding: 30px; background:#f5f5f5; }
@@ -19,57 +19,56 @@ th, td { border: 1px solid #ccc; padding: 6px; }
 
 <body>
 
-<h1>Nihongo App – Fase 2</h1>
+<h1>Nihongo App</h1>
 
 <nav id="menu" class="hidden">
-  <button onclick="mostrarDirectorio()">Directorio</button>
-  <button onclick="mostrarAlta()">Alta Alumno</button>
-  <button onclick="logout()">Salir</button>
+  <button id="btnDir">Directorio</button>
+  <button id="btnAlta">Alta Alumno</button>
+  <button id="btnLogout">Salir</button>
 </nav>
 
 <div id="app"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getFirestore, collection, getDocs, doc, setDoc, getDoc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase (NO module) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-/* ===== Firebase ===== */
+<script>
+/* ================= FIREBASE ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
   projectId: "nihongoapp-85125"
 };
-const appFb = initializeApp(firebaseConfig);
-const db = getFirestore(appFb);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-/* ===== Estado ===== */
+/* ================= ESTADO ================= */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
+
 const MAESTRO = { user: "admin", pass: "admin" };
 let alumnos = [];
 
-/* ===== Arranque ===== */
+/* ================= ARRANQUE ================= */
 mostrarLogin();
 
-/* ===== Login ===== */
+/* ================= LOGIN ================= */
 function mostrarLogin() {
   menu.classList.add("hidden");
   app.innerHTML = `
     <h2>Login</h2>
     <input id="u" placeholder="Usuario">
     <input id="p" type="password" placeholder="Contraseña">
-    <button id="go">Entrar</button>
+    <button id="btnLogin">Entrar</button>
   `;
-  document.getElementById("go").onclick = login;
+  document.getElementById("btnLogin").addEventListener("click", login);
 }
 
 async function login() {
   const u = document.getElementById("u").value.trim();
   const p = document.getElementById("p").value.trim();
 
-  // Maestro
   if (u === MAESTRO.user && p === MAESTRO.pass) {
     menu.classList.remove("hidden");
     await cargarAlumnos();
@@ -77,10 +76,9 @@ async function login() {
     return;
   }
 
-  // Alumno
-  const snap = await getDoc(doc(db, "alumnos", u));
-  if (snap.exists() && snap.data().pass === p) {
-    mostrarAlumno(snap.data());
+  const docSnap = await db.collection("alumnos").doc(u).get();
+  if (docSnap.exists && docSnap.data().pass === p) {
+    mostrarAlumno(docSnap.data());
     return;
   }
 
@@ -91,32 +89,31 @@ function logout() {
   mostrarLogin();
 }
 
-/* ===== Data ===== */
+/* ================= DATA ================= */
 async function cargarAlumnos() {
-  const snap = await getDocs(collection(db, "alumnos"));
+  const snap = await db.collection("alumnos").get();
   alumnos = snap.docs.map(d => d.data());
 }
 
-/* ===== Directorio ===== */
+/* ================= DIRECTORIO ================= */
 function mostrarDirectorio() {
   app.innerHTML = `
     <div class="card">
       <h2>Directorio de Alumnos</h2>
       <table>
         <tr><th>Nombre</th><th>Usuario</th><th>Nivel</th></tr>
-        ${alumnos.map(a => `
+        ${alumnos.map(a=>`
           <tr>
             <td>${a.nombre}</td>
             <td>${a.usuario}</td>
             <td>${a.nivel}</td>
-          </tr>
-        `).join("")}
+          </tr>`).join("")}
       </table>
     </div>
   `;
 }
 
-/* ===== Alta ===== */
+/* ================= ALTA ================= */
 function mostrarAlta() {
   app.innerHTML = `
     <div class="card">
@@ -125,10 +122,10 @@ function mostrarAlta() {
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <input id="rl" placeholder="Nivel">
-      <button id="reg">Registrar</button>
+      <button id="btnReg">Registrar</button>
     </div>
   `;
-  document.getElementById("reg").onclick = registrarAlumno;
+  document.getElementById("btnReg").addEventListener("click", registrarAlumno);
 }
 
 async function registrarAlumno() {
@@ -144,12 +141,12 @@ async function registrarAlumno() {
     return;
   }
 
-  await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
+  await db.collection("alumnos").doc(alumno.usuario).set(alumno);
   await cargarAlumnos();
   mostrarDirectorio();
 }
 
-/* ===== Panel Alumno ===== */
+/* ================= PANEL ALUMNO ================= */
 function mostrarAlumno(a) {
   menu.classList.add("hidden");
   app.innerHTML = `
@@ -157,10 +154,17 @@ function mostrarAlumno(a) {
       <h2>${a.nombre}</h2>
       <p>Usuario: ${a.usuario}</p>
       <p>Nivel: ${a.nivel}</p>
-      <button onclick="logout()">Salir</button>
+      <button id="btnSalirAlumno">Salir</button>
     </div>
   `;
+  document.getElementById("btnSalirAlumno")
+    .addEventListener("click", logout);
 }
+
+/* ================= MENU EVENTS ================= */
+document.getElementById("btnDir").addEventListener("click", mostrarDirectorio);
+document.getElementById("btnAlta").addEventListener("click", mostrarAlta);
+document.getElementById("btnLogout").addEventListener("click", logout);
 </script>
 
 </body>
