@@ -1,254 +1,148 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Nihongo Admin</title>
+  <meta charset="UTF-8">
+  <title>Nihongo – Fase 1 Rescate</title>
 
-<style>
-body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
-h1,h2,h3 { margin-bottom:10px; }
-nav button { margin-right:8px; padding:6px 10px; }
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
-input, select, button { padding:6px; margin-top:6px; width:100%; }
-.ok { color:green; font-weight:bold; }
-.bad { color:red; font-weight:bold; }
-.hidden { display:none; }
-table { width:100%; border-collapse:collapse; }
-th,td { border:1px solid #ddd; padding:6px; }
-</style>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f4f6f8; }
+    h1, h2 { margin-bottom: 10px; }
+    button { padding: 6px 10px; margin-right: 5px; }
+    input { padding: 6px; width: 100%; margin-bottom: 6px; }
+    .card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    nav { margin-bottom: 15px; }
+    .hidden { display: none; }
+  </style>
 </head>
 
 <body>
 
-<h1>Nihongo App</h1>
+<h1>Nihongo App – Fase 1</h1>
 
 <nav id="menu" class="hidden">
-  <button onclick="vista('dashboard')">Dashboard</button>
-  <button onclick="vista('directorio')">Directorio</button>
-  <button onclick="vista('alta')">Alta Alumno</button>
-  <button onclick="vista('cuotas')">Cuotas</button>
-  <button onclick="vista('cobranza')">Cobranza</button>
-  <button onclick="vista('agenda')">Agenda</button>
+  <button onclick="mostrarDirectorio()">Directorio</button>
+  <button onclick="mostrarAlta()">Alta Alumno</button>
   <button onclick="logout()">Salir</button>
 </nav>
 
 <div id="app"></div>
 
 <script type="module">
-/* ===== IMPORTS (TODO ES MODULE, SIN CONFLICTOS) ===== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.esm.js";
+  // ================= FIREBASE =================
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* ===== FIREBASE ===== */
-const firebaseConfig = {
-  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-  authDomain: "nihongoapp-85125.firebaseapp.com",
-  projectId: "nihongoapp-85125"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+    authDomain: "nihongoapp-85125.firebaseapp.com",
+    projectId: "nihongoapp-85125"
+  };
 
-const fb = initializeApp(firebaseConfig);
-const db = getFirestore(fb);
+  const appFirebase = initializeApp(firebaseConfig);
+  const db = getFirestore(appFirebase);
 
-/* ===== ESTADO ===== */
-const appDiv = document.getElementById("app");
-const menu = document.getElementById("menu");
-const MAESTRO = { user: "admin", pass: "admin" };
-let alumnos = [], grupos = [], cuotas = [], egresos = [];
+  // ================= ESTADO =================
+  const appDiv = document.getElementById("app");
+  const menu = document.getElementById("menu");
+  const MAESTRO = { user: "admin", pass: "admin" };
+  let alumnos = [];
 
-/* ===== UTILS ===== */
-const hoy = () => new Date().toISOString().slice(0,10);
-const sumar30 = () => { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().slice(0,10); };
-const activo = f => new Date() <= new Date(f);
-const mesActual = f => f && f.slice(0,7) === hoy().slice(0,7);
+  // ================= INICIO =================
+  mostrarLogin();
 
-/* ===== ARRANQUE ===== */
-mostrarLogin();
-
-/* ===== LOGIN ===== */
-function mostrarLogin(){
-  menu.classList.add("hidden");
-  appDiv.innerHTML = `
-    <h2>Login</h2>
-    <input id="u" placeholder="Usuario">
-    <input id="p" type="password" placeholder="Contraseña">
-    <button id="go">Entrar</button>
-  `;
-  document.getElementById("go").onclick = manejarLogin;
-}
-
-async function manejarLogin(){
-  const user = u.value.trim();
-  const pass = p.value.trim();
-
-  if(user === MAESTRO.user && pass === MAESTRO.pass){
-    menu.classList.remove("hidden");
-    await cargarTodo();
-    vista("dashboard");
-    return;
+  // ================= LOGIN =================
+  function mostrarLogin() {
+    menu.classList.add("hidden");
+    appDiv.innerHTML = `
+      <h2>Login Maestro</h2>
+      <input id="u" placeholder="Usuario">
+      <input id="p" type="password" placeholder="Contraseña">
+      <button id="go">Entrar</button>
+    `;
+    document.getElementById("go").onclick = manejarLogin;
   }
 
-  const snap = await getDoc(doc(db,"alumnos",user));
-  if(!snap.exists() || snap.data().pass !== pass){
-    alert("Credenciales incorrectas");
-    return;
+  function manejarLogin() {
+    const user = document.getElementById("u").value.trim();
+    const pass = document.getElementById("p").value.trim();
+
+    if (user === MAESTRO.user && pass === MAESTRO.pass) {
+      menu.classList.remove("hidden");
+      cargarAlumnos().then(mostrarDirectorio);
+    } else {
+      alert("Credenciales incorrectas");
+    }
   }
 
-  mostrarAlumno(snap.data());
-}
+  function logout() {
+    mostrarLogin();
+  }
 
-window.logout = () => mostrarLogin();
+  // ================= DATA =================
+  async function cargarAlumnos() {
+    const snap = await getDocs(collection(db, "alumnos"));
+    alumnos = snap.docs.map(d => d.data());
+  }
 
-/* ===== DATA ===== */
-async function cargarTodo(){
-  alumnos = (await getDocs(collection(db,"alumnos"))).docs.map(d=>d.data());
-  grupos  = (await getDocs(collection(db,"grupos"))).docs.map(d=>d.data());
-  cuotas  = (await getDocs(collection(db,"cuotas"))).docs.map(d=>d.data());
-  egresos = (await getDocs(collection(db,"egresos"))).docs.map(d=>d.data());
-}
-
-/* ===== VISTAS ===== */
-window.vista = function(v){
-
-  if(v==="directorio"){
+  // ================= DIRECTORIO =================
+  function mostrarDirectorio() {
     appDiv.innerHTML = `
       <div class="card">
-        <h3>Directorio de Alumnos</h3>
+        <h2>Directorio de Alumnos</h2>
         <table>
-          <tr><th>Nombre</th><th>Usuario</th><th>Grupo</th><th>Nivel</th><th>Estado</th><th>Vence</th></tr>
-          ${alumnos.map(a=>`
+          <tr>
+            <th>Nombre</th>
+            <th>Usuario</th>
+            <th>Nivel</th>
+          </tr>
+          ${alumnos.map(a => `
             <tr>
               <td>${a.nombre}</td>
               <td>${a.usuario}</td>
-              <td>${a.grupoNombre||""}</td>
               <td>${a.nivel}</td>
-              <td>${activo(a.vencimiento)?"Activo":"Suspendido"}</td>
-              <td>${a.vencimiento}</td>
-            </tr>`).join("")}
+            </tr>
+          `).join("")}
         </table>
-      </div>`;
+      </div>
+    `;
   }
 
-  if(v==="alta"){
+  // ================= ALTA =================
+  function mostrarAlta() {
     appDiv.innerHTML = `
       <div class="card">
-        <h3>Alta de Alumno</h3>
+        <h2>Alta de Alumno</h2>
         <input id="ru" placeholder="Usuario">
         <input id="rp" placeholder="Contraseña">
         <input id="rn" placeholder="Nombre">
         <input id="rl" placeholder="Nivel">
-        <select id="rg">
-          ${grupos.map(g=>`<option value="${g.id}|${g.nombre}|${g.link}">${g.nombre}</option>`).join("")}
-        </select>
-        <button onclick="registrarAlumno()">Registrar</button>
-      </div>`;
+        <button id="reg">Registrar</button>
+      </div>
+    `;
+    document.getElementById("reg").onclick = registrarAlumno;
   }
 
-  if(v==="cuotas"){
-    appDiv.innerHTML = `
-      <div class="card">
-        <h3>Cuotas</h3>
-        <input id="cn" placeholder="Nombre">
-        <input id="cm" type="number" placeholder="Monto">
-        <button onclick="registrarCuota()">Agregar</button>
-        <ul>${cuotas.map(c=>`<li>${c.nombre} - $${c.monto}</li>`).join("")}</ul>
-      </div>`;
+  async function registrarAlumno() {
+    const alumno = {
+      usuario: document.getElementById("ru").value.trim(),
+      pass: document.getElementById("rp").value.trim(),
+      nombre: document.getElementById("rn").value.trim(),
+      nivel: document.getElementById("rl").value.trim()
+    };
+
+    if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
+      alert("Completa todos los campos");
+      return;
+    }
+
+    await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
+    await cargarAlumnos();
+    mostrarDirectorio();
   }
 
-  if(v==="cobranza"){
-    appDiv.innerHTML = alumnos.map(a=>`
-      <div class="card">
-        <b>${a.nombre}</b><br>
-        Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}
-        <select id="c_${a.usuario}">
-          ${cuotas.map(c=>`<option value="${c.monto}">${c.nombre} - $${c.monto}</option>`).join("")}
-        </select>
-        <button onclick="pagar('${a.usuario}')">Registrar pago</button>
-      </div>`).join("");
-  }
-
-  if(v==="agenda"){
-    appDiv.innerHTML = alumnos.map(a=>`
-      <div class="card">
-        <b>${a.nombre}</b><br>
-        Grupo: ${a.grupoNombre}<br>
-        <a href="${a.grupoLinkams</a>
-      </div>`).join("");
-  }
-
-  if(v==="dashboard"){
-    let ing=0, eg=0;
-    alumnos.forEach(a=>a.pagos.forEach(p=>{ if(mesActual(p.fecha)) ing+=p.monto; }));
-    egresos.forEach(e=>{ if(mesActual(e.fecha)) eg+=e.monto; });
-
-    const bal = ing-eg;
-
-    appDiv.innerHTML = `
-      <div class="card">
-        <h2>Ingresos: $${ing}</h2>
-        <h2>Egresos: $${eg}</h2>
-        <h1 class="${bal>=0?'ok':'bad'}">Balance: $${bal}</h1>
-        <canvas id="grafico"></canvas>
-      </div>`;
-
-    new Chart(document.getElementById("grafico"),{
-      type:"bar",
-      data:{
-        labels:["Ingresos","Egresos"],
-        datasets:[{
-          label:"Mensual",
-          data:[ing,eg],
-          backgroundColor:["green","red"]
-        }]
-      }
-    });
-  }
-};
-
-/* ===== ACCIONES ===== */
-async function registrarAlumno(){
-  const [gid,gname,glink] = rg.value.split("|");
-  const a={
-    usuario:ru.value,
-    pass:rp.value,
-    nombre:rn.value,
-    nivel:rl.value,
-    grupoId:gid,
-    grupoNombre:gname,
-    grupoLink:glink,
-    vencimiento:sumar30(),
-    pagos:[]
-  };
-  await setDoc(doc(db,"alumnos",a.usuario),a);
-  await cargarTodo(); vista("directorio");
-}
-
-async function registrarCuota(){
-  const c={nombre:cn.value,monto:parseFloat(cm.value)};
-  await setDoc(doc(db,"cuotas",c.nombre),c);
-  await cargarTodo(); vista("cuotas");
-}
-
-window.pagar = async function(user){
-  const a = alumnos.find(x=>x.usuario===user);
-  const monto = parseFloat(document.getElementById("c_"+user).value);
-  a.vencimiento = sumar30();
-  a.pagos.push({fecha:hoy(),monto});
-  await setDoc(doc(db,"alumnos",a.usuario),a);
-  await cargarTodo(); vista("cobranza");
-};
-
-function mostrarAlumno(a){
-  menu.classList.add("hidden");
-  appDiv.innerHTML = `
-    <div class="card">
-      <h2>${a.nombre}</h2>
-      Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}
-      <a href="${a.grupoLink}" target="_blank<button onclick="logout()">Salir</button>
-    </div>`;
-}
 </script>
 
 </body>
 </html>
-``
