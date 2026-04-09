@@ -17,7 +17,6 @@ th, td { border:1px solid #ccc; padding:6px; }
 .red { color:red; font-weight:bold; }
 .yellow { color:#c49b00; font-weight:bold; }
 .hidden { display:none; }
-small { color:#666; }
 </style>
 </head>
 
@@ -37,12 +36,13 @@ small { color:#666; }
 
 <div id="app"></div>
 
-<!-- Firebase -->
+<!-- ✅ SCRIPTS CORRECTOS (ESTO ES LA CLAVE) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+/* ================= FIREBASE ================= */
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
@@ -50,46 +50,48 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
+/* ================= ESTADO ================= */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 const MAESTRO = { user:"admin", pass:"admin" };
 
-let alumnos=[], cuotas=[], egresos=[];
+let alumnos = [];
+let cuotas  = [];
+let egresos = [];
 
-/* ---------- INIT & SESION ---------- */
+/* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded", init);
 
 async function init(){
   alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
   cuotas  = (await db.collection("cuotas").get()).docs.map(d=>d.data());
-  egresos = (await db.collection("egresos").get()).docs.map(d=>({...d.data(), _id:d.id}));
+  egresos = (await db.collection("egresos").get()).docs.map(d=>d.data());
 
-  const s = JSON.parse(localStorage.getItem("sesion"));
-  if(s?.tipo==="maestro"){
+  const sesion = JSON.parse(localStorage.getItem("sesion"));
+  if(sesion?.tipo==="maestro"){
     menu.classList.remove("hidden");
     dashboard();
     return;
   }
-  if(s?.tipo==="alumno"){
-    const a = alumnos.find(x=>x.usuario===s.usuario);
+  if(sesion?.tipo==="alumno"){
+    const a = alumnos.find(x=>x.usuario===sesion.usuario);
     if(a){ perfilAlumno(a); return; }
   }
   loginUI();
 }
 
-/* ---------- LOGIN ---------- */
+/* ================= LOGIN ================= */
 function loginUI(){
   menu.classList.add("hidden");
   app.innerHTML=`
     <h2>Login</h2>
     <input id="u" placeholder="Usuario">
     <input id="p" type="password" placeholder="Contraseña">
-    <button id="btnLogin">Entrar</button>`;
-  btnLogin.onclick = login;
+    <button onclick="login()">Entrar</button>`;
 }
 
 async function login(){
-  if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
+  if(u.value==="admin" && p.value==="admin"){
     localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
     location.reload(); return;
   }
@@ -101,13 +103,88 @@ async function login(){
   alert("Credenciales incorrectas");
 }
 
-function logout(){ localStorage.clear(); location.reload(); }
+function logout(){
+  localStorage.clear();
+  location.reload();
+}
 
-/* ---------- LOGICA ESTATUS ---------- */
-function obtenerModalidad(id){ return cuotas.find(c=>c.id===id); }
-
+/* ================= ESTATUS ================= */
 function estatusAlumno(a){
-  const inscripcion = (a.pagos||[]).find(p=>p.tipo==="inscripcion");
-  if(!inscripcion) return {txt:"Pendiente de inscripción", cls:"yellow"};
+  const pagoIns = (a.pagos||[]).find(p=>p.tipo==="inscripcion");
+  if(!pagoIns) return {txt:"Pendiente de inscripción", cls:"yellow"};
 
- 
+  const plan = cuotas.find(c=>c.id===a.planId);
+  if(plan.tipo!=="recurrente") return {txt:"Al corriente", cls:"green"};
+
+  const ult = (a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
+  if(!ult) return {txt:"Adeudo", cls:"red"};
+
+  const v = new Date(ult.fecha);
+  v.setDate(v.getDate()+plan.recurrenciaDias);
+  return new Date()<=v ? {txt:"Al corriente", cls:"green"} : {txt:"Adeudo", cls:"red"};
+}
+
+/* ================= DASHBOARD ================= */
+function dashboard(){
+  let ingresos=0, gastos=0;
+  alumnos.forEach(a=>(a.pagos||[]).forEach(p=>ingresos+=p.monto));
+  egresos.forEach(e=>gastos+=e.monto);
+
+  app.innerHTML=`
+    <div class="card">
+      <h2>Dashboard</h2>
+      <p>Ingresos: $${ingresos}</p>
+      <p>Egresos: $${gastos}</p>
+      <p class="${ingresos-gastos>=0?'green':'red'}">Balance: $${ingresos-gastos}</p>
+      <canvas id="graf"></canvas>
+    </div>`;
+
+  new Chart(document.getElementById("graf"),{
+    type:"bar",
+    data:{
+      labels:["Ingresos","Egresos"],
+      datasets:[{data:[ingresos,gastos],backgroundColor:["green","red"]}]
+    }
+  });
+}
+
+/* ================= DIRECTORIO ================= */
+function directorio(){
+  app.innerHTML=`
+    <div class="card">
+      <h2>Directorio</h2>
+      <table>
+        <tr><th>Alumno</th><th>Modalidad</th><th>Estatus</th></tr>
+        ${alumnos.map(a=>{
+          const e=estatusAlumno(a);
+          return `<tr>
+            <td>${a.nombre}</td>
+            <td>${cuotas.find(c=>c.id===a.planId)?.nombre||""}</td>
+            <td class="${e.cls}">${e.txt}</td>
+          </tr>`;
+        }).join("")}
+      </table>
+    </div>`;
+}
+
+/* ================= PERFIL ALUMNO ================= */
+function perfilAlumno(a){
+  const e = estatusAlumno(a);
+  const ult = (a.pagos||[]).slice(-1)[0];
+  app.innerHTML=`
+    <div class="card">
+      <h2>${a.nombre}</h2>
+      <p class="${e.cls}">${e.txt}</p>
+      ${ult?`<p>Último pago: ${ult.tipo} - $${ult.monto} (${new Date(ult.fecha).toLocaleDateString()})</p>`:""}
+      <button onclick="logout()">Salir</button>
+    </div>`;
+}
+
+/* ================= MENU ================= */
+btnDash.onclick = dashboard;
+btnDir.onclick = directorio;
+btnLogout.onclick = logout;
+</script>
+
+</body>
+</html>
