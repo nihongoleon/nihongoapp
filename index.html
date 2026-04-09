@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 5 (CORREGIDA)</title>
+<title>Nihongo – Fase 5.1</title>
 
 <style>
 body { font-family: Arial; padding:30px; background:#f5f5f5; }
@@ -22,7 +22,7 @@ small{color:#666}
 
 <body>
 
-<h1>Nihongo App – Fase 5</h1>
+<h1>Nihongo App – Fase 5.1</h1>
 
 <nav id="menu" class="hidden">
   <button id="btnDash">Dashboard</button>
@@ -36,13 +36,11 @@ small{color:#666}
 
 <div id="app"></div>
 
-<!-- ✅ SCRIPTS REALES -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-/* ===== FIREBASE ===== */
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
@@ -50,28 +48,34 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* ===== ESTADO ===== */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 const MAESTRO = { user:"admin", pass:"admin" };
 let alumnos=[], modalidades=[], egresos=[];
 
-/* ===== ARRANQUE ===== */
 document.addEventListener("DOMContentLoaded", init);
 
 async function init(){
-  await cargarTodo();
+  alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
+  modalidades = (await db.collection("modalidades").get()).docs.map(d=>d.data());
+  egresos = (await db.collection("egresos").get()).docs.map(d=>({...d.data(),id:d.id}));
+
   const s = JSON.parse(localStorage.getItem("sesion"));
   if(!s){ loginUI(); return; }
-  if(s.tipo==="maestro"){ menu.classList.remove("hidden"); dashboard(); return; }
+
+  if(s.tipo==="maestro"){
+    menu.classList.remove("hidden");
+    dashboard();
+    return;
+  }
   if(s.tipo==="alumno"){
-    const a = alumnos.find(x=>x.usuario===s.usuario);
+    const a=alumnos.find(x=>x.usuario===s.usuario);
     if(a){ perfilAlumno(a); return; }
   }
   loginUI();
 }
 
-/* ===== LOGIN ===== */
+/* ---------- LOGIN ---------- */
 function loginUI(){
   menu.classList.add("hidden");
   app.innerHTML=`
@@ -81,14 +85,14 @@ function loginUI(){
       <input id="p" type="password" placeholder="Contraseña">
       <button id="go">Entrar</button>
     </div>`;
-  go.onclick = login;
+  go.onclick=login;
 }
 async function login(){
   if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
     localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
     init(); return;
   }
-  const snap = await db.collection("alumnos").doc(u.value).get();
+  const snap=await db.collection("alumnos").doc(u.value).get();
   if(snap.exists && snap.data().pass===p.value){
     localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u.value}));
     init(); return;
@@ -97,126 +101,138 @@ async function login(){
 }
 function logout(){ localStorage.clear(); location.reload(); }
 
-/* ===== DATA ===== */
-async function cargarTodo(){
-  alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
-  modalidades = (await db.collection("modalidades").get()).docs.map(d=>d.data());
-  egresos = (await db.collection("egresos").get()).docs.map(d=>({...d.data(), _id:d.id}));
-}
-
-/* ===== ESTATUS ===== */
+/* ---------- ESTATUS ---------- */
 function estatus(a){
-  const pagoIns = (a.pagos||[]).find(p=>p.tipo==="inscripcion");
-  if(!pagoIns) return {t:"Pendiente de inscripción",c:"yellow"};
-
-  const mod = modalidades.find(m=>m.id===a.modId);
+  const ins=(a.pagos||[]).find(p=>p.tipo==="inscripcion");
+  if(!ins) return {t:"Pendiente de inscripción",c:"yellow"};
+  const mod=modalidades.find(m=>m.id===a.modId);
   if(!mod || mod.tipo!=="recurrente") return {t:"Al corriente",c:"green"};
-
-  const ult = (a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
+  const ult=(a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
   if(!ult) return {t:"Adeudo",c:"red"};
-
-  const v = new Date(ult.fecha); v.setDate(v.getDate()+mod.recurrenciaDias);
-  return (new Date()<=v)?{t:"Al corriente",c:"green"}:{t:"Adeudo",c:"red"};
+  const v=new Date(ult.fecha); v.setDate(v.getDate()+mod.recurrenciaDias);
+  return new Date()<=v?{t:"Al corriente",c:"green"}:{t:"Adeudo",c:"red"};
 }
 
-/* ===== DASHBOARD ===== */
+/* ---------- DASHBOARD ---------- */
 function dashboard(){
-  let ing=0, eg=0;
-  alumnos.forEach(a=>(a.pagos||[]).forEach(p=>ing+=p.monto));
-  egresos.forEach(e=>eg+=e.monto);
+  const now=new Date().toISOString().slice(0,7);
+  let ing=0,eg=0;
+  alumnos.forEach(a=>(a.pagos||[]).forEach(p=>{if(p.fecha.startsWith(now)) ing+=p.monto}));
+  egresos.forEach(e=>{if(e.fecha.startsWith(now)) eg+=e.monto});
   app.innerHTML=`
-   <div class="card">
-     <h2>Dashboard</h2>
-     <p>Ingresos: $${ing}</p>
-     <p>Egresos: $${eg}</p>
-     <canvas id="c"></canvas>
-   </div>`;
-  new Chart(c,{type:"bar",data:{labels:["Ing","Egr"],datasets:[{data:[ing,eg]}]}});}
+    <div class="card">
+      <h2>Resumen del mes</h2>
+      <p class="green">Ingresos: $${ing}</p>
+      <p class="red">Egresos: $${eg}</p>
+      <p><b>Total:</b> $${ing-eg}</p>
+      <canvas id="graf"></canvas>
+    </div>`;
+  new Chart(graf,{type:"bar",data:{labels:["Ingresos","Egresos"],datasets:[{data:[ing,eg],backgroundColor:["green","red"]}]}})
+}
 
-/* ===== DIRECTORIO ===== */
+/* ---------- DIRECTORIO ---------- */
 function directorio(){
   app.innerHTML=`
-   <div class="card"><h2>Directorio</h2>
-   <table><tr><th>Nombre</th><th>Modalidad</th><th>Estatus</th><th>Editar</th></tr>
-   ${alumnos.map(a=>{
-     const e=estatus(a);
-     return `<tr>
-       <td>${a.nombre}</td>
-       <td>${modalidades.find(m=>m.id===a.modId)?.nombre||""}</td>
-       <td class="${e.c}">${e.t}</td>
-       <td><button onclick="edit('${a.usuario}')">Editar</button></td>
-     </tr>`}).join("")}
-   </table></div>`;
-}
-function edit(u){
-  const a=alumnos.find(x=>x.usuario===u);
-  app.innerHTML=`
-   <div class="card">
-     <h2>Editar Alumno</h2>
-     <input id="rn" value="${a.nombre}">
-     <select id="rm">${modalidades.map(m=>`<option ${m.id===a.modId?"selected":""} value="${m.id}">${m.nombre}</option>`)}</select>
-     <button onclick="save('${u}')">Guardar</button>
-   </div>`;
-}
-async function save(u){
-  await db.collection("alumnos").doc(u).set({nombre:rn.value,modId:rm.value},{merge:true});
-  init();
+    <div class="card">
+      <h2>Directorio</h2>
+      <table>
+        <tr><th>Nombre</th><th>Modalidad</th><th>Estatus</th><th>Editar</th></tr>
+        ${alumnos.map(a=>{
+          const e=estatus(a);
+          return `<tr>
+            <td>${a.nombre}</td>
+            <td>${modalidades.find(m=>m.id===a.modId)?.nombre||""}</td>
+            <td class="${e.c}">${e.t}</td>
+            <td><button onclick="editarAlumno('${a.usuario}')">Editar</button></td>
+          </tr>`;
+        }).join("")}
+      </table>
+    </div>`;
 }
 
-/* ===== ALTA ===== */
+/* ---------- ALTA ---------- */
 function alta(){
   app.innerHTML=`
-   <div class="card">
-     <h2>Alta Alumno</h2>
-     <input id="ru" placeholder="Usuario">
-     <input id="rp" placeholder="Password">
-     <input id="rn" placeholder="Nombre">
-     <select id="rm">${modalidades.filter(m=>m.tipo!="inscripcion").map(m=>`<option value="${m.id}">${m.nombre}</option>`)}</select>
-     <button onclick="altaGo()">Crear</button>
-   </div>`;
+    <div class="card">
+      <h2>Alta Alumno</h2>
+      <input id="ru" placeholder="Usuario">
+      <input id="rp" placeholder="Contraseña">
+      <input id="rn" placeholder="Nombre">
+      <select id="rm">
+        ${modalidades.filter(m=>m.tipo!=="inscripcion").map(m=>`<option value="${m.id}">${m.nombre}</option>`).join("")}
+      </select>
+      <button onclick="crearAlumno()">Crear</button>
+    </div>`;
 }
-async function altaGo(){
-  await db.collection("alumnos").doc(ru.value).set({usuario:ru.value,pass:rp.value,nombre:rn.value,modId:rm.value,pagos:[]});
+async function crearAlumno(){
+  await db.collection("alumnos").doc(ru.value).set({
+    usuario:ru.value, pass:rp.value, nombre:rn.value, modId:rm.value, pagos:[]
+  });
   init();
 }
 
-/* ===== MODALIDADES ===== */
+/* ---------- EDITAR ALUMNO ---------- */
+function editarAlumno(u){
+  const a=alumnos.find(x=>x.usuario===u);
+  app.innerHTML=`
+    <div class="card">
+      <h2>Editar Alumno</h2>
+      <input id="en" value="${a.nombre}">
+      <select id="em">
+        ${modalidades.filter(m=>m.tipo!=="inscripcion")
+          .map(m=>`<option ${m.id===a.modId?"selected":""} value="${m.id}">${m.nombre}</option>`).join("")}
+      </select>
+      <button onclick="guardarAlumno('${u}')">Guardar</button>
+    </div>`;
+}
+async function guardarAlumno(u){
+  await db.collection("alumnos").doc(u).set({nombre:en.value,modId:em.value},{merge:true});
+  init();
+}
+
+/* ---------- MODALIDADES ---------- */
 function mods(){
   app.innerHTML=`
-   <div class="card">
-     <h2>Modalidades</h2>
-     <input id="mn" placeholder="Nombre">
-     <input id="mm" type="number" placeholder="Monto">
-     <select id="mt"><option value="recurrente">Recurrente</option><option value="unica">Única</option></select>
-     <input id="mr" type="number" placeholder="Recurrencia días">
-     <button onclick="modGo()">Agregar</button>
-   </div>`;
+    <div class="card">
+      <h2>Modalidades</h2>
+      <input id="mn" placeholder="Nombre">
+      <input id="mm" type="number" placeholder="Monto">
+      <select id="mt">
+        <option value="recurrente">Recurrente</option>
+        <option value="unica">Única</option>
+      </select>
+      <input id="mr" type="number" placeholder="Recurrencia días">
+      <button onclick="crearMod()">Agregar</button>
+      <ul>${modalidades.map(m=>`<li>${m.nombre}</li>`).join("")}</ul>
+    </div>`;
 }
-async function modGo(){
-  const id=mn.value.toLowerCase().replace(/\s/g,"_");
-  await db.collection("modalidades").doc(id).set({id,nombre:mn.value,monto:+mm.value,tipo:mt.value,recurrenciaDias:+mr.value||0});
+async function crearMod(){
+  const id=mn.value.toLowerCase().replace(/\s+/g,"_");
+  await db.collection("modalidades").doc(id).set({
+    id,nombre:mn.value,monto:+mm.value,tipo:mt.value,recurrenciaDias:+mr.value||0
+  });
   init();
 }
 
-/* ===== COBRANZA ===== */
+/* ---------- COBRANZA ---------- */
 function cob(){
   app.innerHTML=alumnos.map(a=>{
     const e=estatus(a);
     const mod=modalidades.find(m=>m.id===a.modId);
-    const pendienteIns = !(a.pagos||[]).some(p=>p.tipo==="inscripcion");
-    const vencido = e.t==="Adeudo";
-    const puede = pendienteIns || (mod?.tipo==="recurrente" && vencido);
+    const pendienteIns=!(a.pagos||[]).some(p=>p.tipo==="inscripcion");
+    const vencido=e.t==="Adeudo";
+    const puede=pendienteIns || (mod?.tipo==="recurrente" && vencido);
     return `
-     <div class="card">
-       <b>${a.nombre}</b>
-       <p class="${e.c}">${e.t}</p>
-       ${puede?`<button onclick="pagar('${a.usuario}')">Registrar pago</button>`:`<small>Sin pagos pendientes</small>`}
-     </div>`;
+      <div class="card">
+        <b>${a.nombre}</b>
+        <p class="${e.c}">${e.t}</p>
+        ${puede?`<button onclick="pagar('${a.usuario}')">Registrar pago</button>`:`<small>Sin pagos pendientes</small>`}
+      </div>`;
   }).join("");
 }
 async function pagar(u){
   const a=alumnos.find(x=>x.usuario===u);
-  if(!(a.pagos||[]).some(p=>p.tipo==="inscripcion")){
+  if(!(a.pagos||[]).find(p=>p.tipo==="inscripcion")){
     a.pagos.push({tipo:"inscripcion",fecha:new Date().toISOString(),monto:500});
   }else{
     const m=modalidades.find(x=>x.id===a.modId);
@@ -226,33 +242,37 @@ async function pagar(u){
   init();
 }
 
-/* ===== EGRESOS ===== */
+/* ---------- EGRESOS ---------- */
 function egs(){
   app.innerHTML=`
-   <div class="card">
-     <h2>Egresos</h2>
-     <input id="ec" placeholder="Concepto">
-     <input id="em" type="number" placeholder="Monto">
-     <button onclick="egAdd()">Agregar</button>
-     <ul>${egresos.map(e=>`<li>${e.concepto} $${e.monto}</li>`).join("")}</ul>
-   </div>`;
+    <div class="card">
+      <h2>Egresos</h2>
+      <input id="ec" placeholder="Concepto">
+      <input id="em" type="number" placeholder="Monto">
+      <button onclick="egAdd()">Agregar</button>
+      <ul>
+        ${egresos.map(e=>`<li>${e.concepto} $${e.monto}
+          <button onclick="egDel('${e.id}')">🗑️</button></li>`).join("")}
+      </ul>
+    </div>`;
 }
-async function egAdd(){ await db.collection("egresos").add({concepto:ec.value,monto:+em.value}); init(); }
+async function egAdd(){ await db.collection("egresos").add({concepto:ec.value,monto:+em.value,fecha:new Date().toISOString()}); init(); }
+async function egDel(id){ await db.collection("egresos").doc(id).delete(); init(); }
 
-/* ===== PERFIL ALUMNO ===== */
+/* ---------- PERFIL ALUMNO ---------- */
 function perfilAlumno(a){
   const e=estatus(a);
   const ult=(a.pagos||[]).slice(-1)[0];
   app.innerHTML=`
-   <div class="card">
-     <h2>${a.nombre}</h2>
-     <p class="${e.c}">${e.t}</p>
-     ${ult?`<p>Último: ${ult.tipo} $${ult.monto}</p>`:""}
-     <button onclick="logout()">Salir</button>
-   </div>`;
+    <div class="card">
+      <h2>${a.nombre}</h2>
+      <p class="${e.c}">${e.t}</p>
+      ${ult?`<p>Último pago: ${ult.tipo} - $${ult.monto}</p>`:""}
+      <button onclick="logout()">Salir</button>
+    </div>`;
 }
 
-/* ===== MENU ===== */
+/* ---------- MENU ---------- */
 btnDash.onclick=dashboard;
 btnDir.onclick=directorio;
 btnAlta.onclick=alta;
