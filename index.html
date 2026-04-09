@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Nihongo Admin</title>
 
-<!-- ✅ Chart.js CORRECTAMENTE cargado -->
-https://cdn.jsdelivr.net/npm/chart.jsscript>
+<!-- ✅ Chart.js CORRECTAMENTE CARGADO -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
@@ -31,41 +31,38 @@ input, button { padding:6px; margin-top:6px; width:100%; }
   <button onclick="logout()">Salir</button>
 </nav>
 
-<div id="app">Cargando…</div>
+<div id="app"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
   projectId: "nihongoapp-85125"
 };
-
 const fb = initializeApp(firebaseConfig);
 const db = getFirestore(fb);
 
+/* ESTADO */
 const appDiv = document.getElementById("app");
 const menu = document.getElementById("menu");
-
 const MAESTRO = { user: "admin", pass: "admin" };
 let alumnos = [];
 
+/* UTILS */
 function hoy(){ return new Date().toISOString().slice(0,10); }
-function sumar30(){ let d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().slice(0,10); }
+function sumar30(){ const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().slice(0,10); }
 function activo(f){ return new Date()<=new Date(f); }
 function mesActual(f){ return f && f.startsWith(hoy().slice(0,7)); }
 
-window.logout = function(){
-  menu.classList.add("hidden");
-  login();
-};
+/* ARRANQUE */
+mostrarLogin();
 
-login();
-
-/* ========= LOGIN ========= */
-function login(){
+/* LOGIN */
+function mostrarLogin(){
   menu.classList.add("hidden");
   appDiv.innerHTML = `
     <h2>Login</h2>
@@ -73,31 +70,40 @@ function login(){
     <input id="p" type="password" placeholder="Contraseña">
     <button id="go">Entrar</button>
   `;
-  document.getElementById("go").onclick = async ()=>{
-    if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
-      menu.classList.remove("hidden");
-      await cargar();
-      vista("dashboard");
-      return;
-    }
-    const alumnosRef = await getDocs(collection(db,"alumnos"));
-    const alumno = alumnosRef.docs.map(d=>d.data())
-      .find(a=>a.usuario===u.value && a.pass===p.value);
-    if(!alumno){
-      alert("Credenciales incorrectas");
-      return;
-    }
-    mostrarAlumno(alumno);
-  }
+  document.getElementById("go").onclick = manejarLogin;
 }
 
-/* ========= DATA ========= */
-async function cargar(){
+async function manejarLogin(){
+  const user = document.getElementById("u").value.trim();
+  const pass = document.getElementById("p").value.trim();
+
+  if(user===MAESTRO.user && pass===MAESTRO.pass){
+    menu.classList.remove("hidden");
+    await cargarAlumnos();
+    vista("dashboard");
+    return;
+  }
+
+  const ref = doc(db,"alumnos",user);
+  const snap = await getDoc(ref);
+  if(!snap.exists() || snap.data().pass!==pass){
+    alert("Credenciales incorrectas");
+    return;
+  }
+  mostrarAlumno(snap.data());
+}
+
+window.logout = function(){
+  mostrarLogin();
+};
+
+/* DATA */
+async function cargarAlumnos(){
   const snap = await getDocs(collection(db,"alumnos"));
   alumnos = snap.docs.map(d=>d.data());
 }
 
-/* ========= VISTAS MAESTRO ========= */
+/* VISTAS */
 window.vista = function(v){
   if(v==="alumnos"){
     appDiv.innerHTML = `
@@ -128,8 +134,8 @@ window.vista = function(v){
         a.vencimiento=sumar30();
         a.pagos.push({fecha:hoy(),monto:1200});
         await setDoc(doc(db,"alumnos",a.usuario),a);
-        await cargar(); vista("cobranza");
-      }
+        await cargarAlumnos(); vista("cobranza");
+      };
       appDiv.appendChild(d);
     });
   }
@@ -140,8 +146,7 @@ window.vista = function(v){
       appDiv.innerHTML+=`
       <div class="card">
         <b>${a.nombre}</b><br>
-        Grupo Teams: ${a.teams ? `${a.teams}Abrir</a>` : "No asignado"}<br>
-        Próxima clase: ${a.clase || "No asignada"}
+        Grupo Teams: ${a.teams ? `<a href="${a.teams}" target="_xima clase: ${a.clase || "No asignada"}
       </div>`;
     });
   }
@@ -150,41 +155,48 @@ window.vista = function(v){
     let ing=0, eg=0;
     alumnos.forEach(a=>a.pagos.forEach(p=>{ if(mesActual(p.fecha)) ing+=p.monto; }));
     const balance=ing-eg;
+
     appDiv.innerHTML=`
       <div class="card">
-        <h2>Ingresos: $${ing}</h2>
-        <h2>Egresos: $${eg}</h2>
+        <h2>Ingresos del mes: $${ing}</h2>
+        <h2>Egresos del mes: $${eg}</h2>
         <h1 class="${balance>=0?'ok':'bad'}">Balance: $${balance}</h1>
-        <canvas id="graf"></canvas>
+        <canvas id="grafico" height="120"></canvas>
       </div>
     `;
-    new Chart(document.getElementById("graf"),{
+
+    const ctx = document.getElementById("grafico").getContext("2d");
+    new Chart(ctx,{
       type:"bar",
       data:{
         labels:["Ingresos","Egresos"],
-        datasets:[{data:[ing,eg], backgroundColor:["green","red"]}]
+        datasets:[{
+          label:"Resumen mensual",
+          data:[ing,eg],
+          backgroundColor:["green","red"]
+        }]
       }
     });
   }
 }
 
-/* ========= REGISTRO ========= */
+/* REGISTRO */
 async function registrarAlumno(){
   const a={
-    usuario:ru.value,
-    pass:rp.value,
-    nombre:rn.value,
-    nivel:rl.value,
+    usuario:document.getElementById("ru").value.trim(),
+    pass:document.getElementById("rp").value.trim(),
+    nombre:document.getElementById("rn").value.trim(),
+    nivel:document.getElementById("rl").value.trim(),
     vencimiento:sumar30(),
     pagos:[],
     teams:"",
     clase:""
   };
   await setDoc(doc(db,"alumnos",a.usuario),a);
-  await cargar(); vista("alumnos");
+  await cargarAlumnos(); vista("alumnos");
 }
 
-/* ========= PANEL ALUMNO ========= */
+/* PANEL ALUMNO */
 function mostrarAlumno(a){
   menu.classList.add("hidden");
   appDiv.innerHTML=`
