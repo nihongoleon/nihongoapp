@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <title>Nihongo Admin</title>
 
-<!-- Chart.js CORRECTAMENTE CARGADO -->
-https://cdn.jsdelivr.net/npm/chart.jsscript>
+<!-- Chart.js BIEN CARGADO -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: Arial; background:#f4f6f8; padding:30px; }
-nav button { margin-right:8px; }
+body { font-family: Arial, sans-serif; background:#f4f6f8; padding:30px; }
+h1,h2 { margin-bottom:10px; }
+nav button { margin-right:8px; padding:6px 10px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
-input, button { padding:6px; margin-top:5px; width:100%; }
+input, button { padding:6px; margin-top:6px; width:100%; }
 .ok { color:green; font-weight:bold; }
 .bad { color:red; font-weight:bold; }
 .hidden { display:none; }
@@ -99,9 +100,10 @@ window.vista = function(v){
         <input id="rp" placeholder="Contraseña">
         <input id="rn" placeholder="Nombre">
         <input id="rl" placeholder="Nivel">
-        <button onclick="registrarAlumno()">Registrar</button>
+        <button id="reg">Registrar</button>
       </div>
     `;
+    document.getElementById("reg").onclick = registrarAlumno;
   }
 
   if(v==="cobranza"){
@@ -110,82 +112,3 @@ window.vista = function(v){
       const d=document.createElement("div");
       d.className="card";
       d.innerHTML=`
-        <b>${a.nombre}</b><br>
-        Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}<br>
-        Vence: ${a.vencimiento}
-        <button>Registrar Pago</button>
-      `;
-      d.querySelector("button").onclick=async()=>{
-        a.vencimiento=sumar30();
-        a.pagos.push({fecha:hoy(),monto:1200});
-        await setDoc(doc(db,"alumnos",a.usuario),a);
-        await cargar(); vista("cobranza");
-      }
-      app.appendChild(d);
-    });
-  }
-
-  if(v==="agenda"){
-    app.innerHTML="";
-    alumnos.forEach(a=>{
-      app.innerHTML+=`
-      <div class="card">
-        <b>${a.nombre}</b><br>
-        Grupo Teams: ${a.teams ? `${a.teams}Abrir</a>` : "No asignado"}<br>
-        Próxima clase: ${a.clase || "No asignada"}
-      </div>`;
-    });
-  }
-
-  if(v==="dashboard"){
-    let ing=0, eg=0;
-    alumnos.forEach(a=>a.pagos.forEach(p=>{ if(mesActual(p.fecha)) ing+=p.monto; }));
-    const balance=ing-eg;
-    app.innerHTML=`
-      <div class="card">
-        <h2>Ingresos: $${ing}</h2>
-        <h2>Egresos: $${eg}</h2>
-        <h1 class="${balance>=0?'ok':'bad'}">Balance: $${balance}</h1>
-        <canvas id="graf"></canvas>
-      </div>
-    `;
-    new Chart(document.getElementById("graf"),{
-      type:"bar",
-      data:{
-        labels:["Ingresos","Egresos"],
-        datasets:[{data:[ing,eg],backgroundColor:["green","red"]}]
-      }
-    });
-  }
-}
-
-window.registrarAlumno = async function(){
-  const a={
-    usuario:ru.value,
-    pass:rp.value,
-    nombre:rn.value,
-    nivel:rl.value,
-    vencimiento:sumar30(),
-    pagos:[],
-    teams:"",
-    clase:""
-  };
-  await setDoc(doc(db,"alumnos",a.usuario),a);
-  await cargar(); vista("alumnos");
-}
-
-function mostrarAlumno(a){
-  menu.classList.add("hidden");
-  app.innerHTML=`
-    <div class="card">
-      <h2>${a.nombre}</h2>
-      Estado: ${activo(a.vencimiento)?'<span class=ok>Activo</span>':'<span class=bad>Suspendido</span>'}<br>
-      ${activo(a.vencimiento)?'':'<p class=bad>Cuenta suspendida por pagos pendientes</p>'}
-      <button onclick="logout()">Salir</button>
-    </div>
-  `;
-}
-</script>
-
-</body>
-</html>
