@@ -2,24 +2,24 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 1</title>
+<title>Nihongo – Fase 2</title>
 
 <style>
-body { font-family: Arial, sans-serif; padding: 30px; background: #f5f5f5; }
-h1, h2 { margin-bottom: 10px; }
-button { padding: 6px 10px; margin-right: 5px; }
-input { padding: 6px; width: 100%; margin-bottom: 6px; }
-nav { margin-bottom: 15px; }
-.card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-.hidden { display: none; }
+body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
+h1,h2 { margin-bottom:10px; }
+button { padding:6px 10px; margin-right:5px; }
+input, select { padding:6px; width:100%; margin-bottom:6px; }
+nav { margin-bottom:15px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #ccc; padding:6px; }
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
 
-<h1>Nihongo App – Fase 1</h1>
+<h1>Nihongo App – Fase 2</h1>
 
 <nav id="menu" class="hidden">
   <button onclick="mostrarDirectorio()">Directorio</button>
@@ -29,43 +29,60 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
 
 <div id="app"></div>
 
-<script>
-/* ===== ESTADO ===== */
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, doc, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ================= FIREBASE ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+  authDomain: "nihongoapp-85125.firebaseapp.com",
+  projectId: "nihongoapp-85125"
+};
+
+const fb = initializeApp(firebaseConfig);
+const db = getFirestore(fb);
+
+/* ================= ESTADO ================= */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
-
-/* Usuario maestro fijo */
 const MAESTRO = { user: "admin", pass: "admin" };
 
-/* Alumnos en memoria */
 let alumnos = [];
+let grupos = [];
 
-/* ===== LOGIN ===== */
+/* ================= ARRANQUE ================= */
+await cargarGrupos();
+mostrarLogin();
+
+/* ================= LOGIN ================= */
 function mostrarLogin() {
   menu.classList.add("hidden");
   app.innerHTML = `
     <h2>Login</h2>
     <input id="u" placeholder="Usuario">
     <input id="p" type="password" placeholder="Contraseña">
-    <button onclick="login()">Entrar</button>
+    <button id="go">Entrar</button>
   `;
+  document.getElementById("go").onclick = login;
 }
 
-function login() {
+async function login() {
   const u = document.getElementById("u").value.trim();
   const p = document.getElementById("p").value.trim();
 
-  /* Maestro */
   if (u === MAESTRO.user && p === MAESTRO.pass) {
     menu.classList.remove("hidden");
+    await cargarAlumnos();
     mostrarDirectorio();
     return;
   }
 
-  /* Alumno */
-  const alumno = alumnos.find(a => a.usuario === u && a.pass === p);
-  if (alumno) {
-    mostrarAlumno(alumno);
+  const snap = await getDoc(doc(db, "alumnos", u));
+  if (snap.exists() && snap.data().pass === p) {
+    mostrarAlumno(snap.data());
     return;
   }
 
@@ -76,7 +93,30 @@ function logout() {
   mostrarLogin();
 }
 
-/* ===== DIRECTORIO ===== */
+/* ================= DATA ================= */
+async function cargarAlumnos() {
+  const snap = await getDocs(collection(db,"alumnos"));
+  alumnos = snap.docs.map(d => d.data());
+}
+
+async function cargarGrupos() {
+  const snap = await getDocs(collection(db,"grupos"));
+  if (snap.empty) {
+    // grupos iniciales
+    const iniciales = [
+      { id:"n5-ma", nombre:"N5 Mañana", teams:"https://teams.microsoft.com" },
+      { id:"n4-ta", nombre:"N4 Tarde", teams:"https://teams.microsoft.com" }
+    ];
+    for (const g of iniciales) {
+      await setDoc(doc(db,"grupos", g.id), g);
+    }
+    grupos = iniciales;
+  } else {
+    grupos = snap.docs.map(d => d.data());
+  }
+}
+
+/* ================= DIRECTORIO ================= */
 function mostrarDirectorio() {
   app.innerHTML = `
     <div class="card">
@@ -86,12 +126,14 @@ function mostrarDirectorio() {
           <th>Nombre</th>
           <th>Usuario</th>
           <th>Nivel</th>
+          <th>Grupo</th>
         </tr>
         ${alumnos.map(a => `
           <tr>
             <td>${a.nombre}</td>
             <td>${a.usuario}</td>
             <td>${a.nivel}</td>
+            <td>${a.grupoNombre}</td>
           </tr>
         `).join("")}
       </table>
@@ -99,7 +141,7 @@ function mostrarDirectorio() {
   `;
 }
 
-/* ===== ALTA ===== */
+/* ================= ALTA ================= */
 function mostrarAlta() {
   app.innerHTML = `
     <div class="card">
@@ -108,43 +150,51 @@ function mostrarAlta() {
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <input id="rl" placeholder="Nivel">
-      <button onclick="registrarAlumno()">Registrar</button>
+      <select id="rg">
+        ${grupos.map(g => `
+          <option value="${g.id}">
+            ${g.nombre}
+          </option>
+        `).join("")}
+      </select>
+      <button id="reg">Registrar</button>
     </div>
   `;
+  document.getElementById("reg").onclick = registrarAlumno;
 }
 
-function registrarAlumno() {
+async function registrarAlumno() {
+  const grupoId = document.getElementById("rg").value;
+  const grupo = grupos.find(g => g.id === grupoId);
+
   const alumno = {
-    usuario: document.getElementById("ru").value.trim(),
-    pass: document.getElementById("rp").value.trim(),
-    nombre: document.getElementById("rn").value.trim(),
-    nivel: document.getElementById("rl").value.trim()
+    usuario: ru.value.trim(),
+    pass: rp.value.trim(),
+    nombre: rn.value.trim(),
+    nivel: rl.value.trim(),
+    grupoId: grupo.id,
+    grupoNombre: grupo.nombre,
+    grupoTeams: grupo.teams
   };
 
-  if (!alumno.usuario || !alumno.pass || !alumno.nombre) {
-    alert("Completa todos los campos");
-    return;
-  }
-
-  alumnos.push(alumno);
+  await setDoc(doc(db, "alumnos", alumno.usuario), alumno);
+  await cargarAlumnos();
   mostrarDirectorio();
 }
 
-/* ===== PANEL ALUMNO ===== */
+/* ================= ALUMNO ================= */
 function mostrarAlumno(a) {
   menu.classList.add("hidden");
   app.innerHTML = `
     <div class="card">
       <h2>${a.nombre}</h2>
-      <p>Usuario: ${a.usuario}</p>
       <p>Nivel: ${a.nivel}</p>
+      <p>Grupo: ${a.grupoNombre}</p>
+      <a href="${a.grupoTeams}" target="_     <br><br>
       <button onclick="logout()">Salir</button>
     </div>
   `;
 }
-
-/* ===== ARRANQUE ===== */
-mostrarLogin();
 </script>
 
 </body>
