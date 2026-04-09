@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 4</title>
+<title>Nihongo – Fase 4.5</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-h1,h2 { margin-bottom:10px; }
+h1,h2,h3 { margin-bottom:10px; }
 nav { margin-bottom:15px; }
 button { padding:6px 10px; margin-right:5px; }
 input, select { padding:6px; width:100%; margin-bottom:6px; }
@@ -21,7 +21,7 @@ th, td { border:1px solid #ccc; padding:6px; }
 
 <body>
 
-<h1>Nihongo App – Fase 4</h1>
+<h1>Nihongo App – Fase 4.5</h1>
 
 <nav id="menu" class="hidden">
   <button id="btnDashboard">Dashboard</button>
@@ -29,7 +29,6 @@ th, td { border:1px solid #ccc; padding:6px; }
   <button id="btnAlta">Alta Alumno</button>
   <button id="btnCuotas">Cuotas</button>
   <button id="btnCobranza">Cobranza</button>
-  <button id="btnEgresos">Egresos</button>
   <button id="btnLogout">Salir</button>
 </nav>
 
@@ -49,24 +48,30 @@ const db = firebase.firestore();
 
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
-
 const MAESTRO = { user:"admin", pass:"admin" };
+
 let alumnos=[], cuotas=[], egresos=[];
 
-/* -------- SESION -------- */
 document.addEventListener("DOMContentLoaded", init);
 
 async function init(){
   await cargarTodo();
-  const s = JSON.parse(localStorage.getItem("sesion"));
-  if(s && s.tipo==="maestro"){
-    menu.classList.remove("hidden");
-    mostrarDashboard();
-    return;
+  const sesion = JSON.parse(localStorage.getItem("sesion"));
+  if(sesion){
+    if(sesion.tipo==="maestro"){
+      menu.classList.remove("hidden");
+      mostrarDashboard();
+      return;
+    }
+    if(sesion.tipo==="alumno"){
+      const a = alumnos.find(x=>x.usuario===sesion.usuario);
+      if(a){ mostrarAlumno(a); return; }
+    }
   }
   mostrarLogin();
 }
 
+/* ---------------- LOGIN ---------------- */
 function mostrarLogin(){
   menu.classList.add("hidden");
   app.innerHTML=`
@@ -82,7 +87,16 @@ async function login(){
     localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
     menu.classList.remove("hidden");
     mostrarDashboard();
+    return;
   }
+
+  const snap = await db.collection("alumnos").doc(u.value).get();
+  if(snap.exists && snap.data().pass===p.value){
+    localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u.value}));
+    mostrarAlumno(snap.data());
+    return;
+  }
+  alert("Credenciales incorrectas");
 }
 
 function logout(){
@@ -90,36 +104,44 @@ function logout(){
   location.reload();
 }
 
-/* -------- DATA -------- */
+/* ---------------- DATA ---------------- */
 async function cargarTodo(){
   alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
-  cuotas = (await db.collection("cuotas").get()).docs.map(d=>d.data());
+  cuotas  = (await db.collection("cuotas").get()).docs.map(d=>d.data());
   egresos = (await db.collection("egresos").get()).docs.map(d=>d.data());
 }
 
-/* -------- DASHBOARD -------- */
+/* ---------------- UTIL ---------------- */
+function calcularEstatus(a){
+  if(!a.pagos || a.pagos.length===0) return "Con adeudo";
+  const ultimo = a.pagos[a.pagos.length-1];
+  const vencimiento = new Date(ultimo.fecha);
+  vencimiento.setDate(vencimiento.getDate()+a.recurrencia);
+  return new Date()<=vencimiento ? "Al corriente" : "Con adeudo";
+}
+
+/* ---------------- DASHBOARD ---------------- */
 function mostrarDashboard(){
   const mes = new Date().toISOString().slice(0,7);
-  let ingresos = 0, gastos = 0;
+  let ingresos=0, gastos=0;
 
   alumnos.forEach(a=>{
     (a.pagos||[]).forEach(p=>{
       if(p.fecha.startsWith(mes)) ingresos+=p.monto;
     });
   });
-
   egresos.forEach(e=>{
     if(e.fecha.startsWith(mes)) gastos+=e.monto;
   });
 
-  const balance = ingresos - gastos;
-
   app.innerHTML=`
     <div class="card">
-      <h2>Dashboard Mensual</h2>
+      <h2>Dashboard</h2>
       <p>Ingresos: $${ingresos}</p>
       <p>Egresos: $${gastos}</p>
-      <p class="${balance>=0?'green':'red'}">Balance: $${balance}</p>
+      <p class="${ingresos-gastos>=0?'green':'red'}">
+        Balance: $${ingresos-gastos}
+      </p>
       <canvas id="graf"></canvas>
     </div>`;
 
@@ -132,19 +154,25 @@ function mostrarDashboard(){
   });
 }
 
-/* -------- DIRECTORIO -------- */
+/* ---------------- DIRECTORIO ---------------- */
 function mostrarDirectorio(){
   app.innerHTML=`
     <div class="card">
       <h2>Directorio</h2>
       <table>
-        <tr><th>Nombre</th><th>Usuario</th><th>Nivel</th></tr>
-        ${alumnos.map(a=>`<tr><td>${a.nombre}</td><td>${a.usuario}</td><td>${a.nivel}</td></tr>`).join("")}
+        <tr><th>Nombre</th><th>Usuario</th><th>Plan</th><th>Estatus</th></tr>
+        ${alumnos.map(a=>`
+          <tr>
+            <td>${a.nombre}</td>
+            <td>${a.usuario}</td>
+            <td>${a.planNombre||""}</td>
+            <td>${calcularEstatus(a)}</td>
+          </tr>`).join("")}
       </table>
     </div>`;
 }
 
-/* -------- ALTA -------- */
+/* ---------------- ALTA ---------------- */
 function mostrarAlta(){
   app.innerHTML=`
     <div class="card">
@@ -153,18 +181,30 @@ function mostrarAlta(){
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <input id="rl" placeholder="Nivel">
+      <select id="rc">
+        ${cuotas.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("")}
+      </select>
+      <input id="rr" type="number" placeholder="Recurrencia (días)">
       <button id="btnReg">Registrar</button>`;
   btnReg.onclick = registrarAlumno;
 }
+
 async function registrarAlumno(){
+  const cuota = cuotas.find(c=>c.nombre===rc.value);
   await db.collection("alumnos").doc(ru.value).set({
-    usuario:ru.value, pass:rp.value,
-    nombre:rn.value, nivel:rl.value, pagos:[]
+    usuario:ru.value,
+    pass:rp.value,
+    nombre:rn.value,
+    nivel:rl.value,
+    planNombre:cuota.nombre,
+    monto:cuota.monto,
+    recurrencia:+rr.value,
+    pagos:[]
   });
   await cargarTodo(); mostrarDirectorio();
 }
 
-/* -------- CUOTAS -------- */
+/* ---------------- CUOTAS ---------------- */
 function mostrarCuotas(){
   app.innerHTML=`
     <div class="card">
@@ -179,47 +219,52 @@ function mostrarCuotas(){
   };
 }
 
-/* -------- COBRANZA -------- */
+/* ---------------- COBRANZA ---------------- */
 function mostrarCobranza(){
   app.innerHTML=alumnos.map(a=>`
     <div class="card">
       <b>${a.nombre}</b>
-      <select id="c_${a.usuario}">
-        ${cuotas.map(c=>`<option value="${c.monto}">${c.nombre}</option>`).join("")}
-      </select>
-      <button onclick="pagar('${a.usuario}')">Pagar</button>
+      <p>Estatus: ${calcularEstatus(a)}</p>
+      <button onclick="pagar('${a.usuario}')">Registrar pago</button>
     </div>`).join("");
 }
+
 async function pagar(u){
   const a = alumnos.find(x=>x.usuario===u);
-  const monto = +document.getElementById("c_"+u).value;
-  a.pagos.push({fecha:new Date().toISOString(),monto});
+  a.pagos.push({fecha:new Date().toISOString(),monto:a.monto});
   await db.collection("alumnos").doc(u).set(a);
-  await cargarTodo();
+  await cargarTodo(); mostrarCobranza();
 }
 
-/* -------- EGRESOS -------- */
-function mostrarEgresos(){
+/* ---------------- PERFIL ALUMNO ---------------- */
+function mostrarAlumno(a){
+  const estatus = calcularEstatus(a);
+  const ultimo = a.pagos?.[a.pagos.length-1];
+  let vencimiento = "—";
+  if(ultimo){
+    const d=new Date(ultimo.fecha); d.setDate(d.getDate()+a.recurrencia);
+    vencimiento=d.toLocaleDateString();
+  }
+
+  menu.classList.add("hidden");
   app.innerHTML=`
     <div class="card">
-      <h2>Egresos</h2>
-      <input id="ce" placeholder="Concepto">
-      <input id="me" type="number" placeholder="Monto">
-      <button id="btnE">Registrar</button>
-      <ul>${egresos.map(e=>`<li>${e.concepto}: $${e.monto}</li>`).join("")}</ul>`;
-  btnE.onclick = async ()=>{
-    await db.collection("egresos").add({concepto:ce.value,monto:+me.value,fecha:new Date().toISOString()});
-    await cargarTodo(); mostrarEgresos();
-  };
+      <h2>${a.nombre}</h2>
+      <p>Plan: ${a.planNombre} ($${a.monto})</p>
+      <p>Estatus: <b>${estatus}</b></p>
+      <p>Próximo vencimiento: ${vencimiento}</p>
+      <p>Pagos realizados: ${(a.pagos||[]).length}</p>
+      <button id="btnSalirAlumno">Salir</button>
+    </div>`;
+  btnSalirAlumno.onclick = logout;
 }
 
-/* -------- MENU -------- */
+/* ---------------- MENU ---------------- */
 btnDashboard.onclick = mostrarDashboard;
 btnDir.onclick = mostrarDirectorio;
 btnAlta.onclick = mostrarAlta;
 btnCuotas.onclick = mostrarCuotas;
 btnCobranza.onclick = mostrarCobranza;
-btnEgresos.onclick = mostrarEgresos;
 btnLogout.onclick = logout;
 </script>
 
