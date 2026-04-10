@@ -2,16 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Paso 2</title>
+<title>Nihongo – Paso 3</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
 nav { margin-bottom:15px; }
 button { padding:6px 10px; margin-right:6px; }
 input { padding:6px; width:100%; margin-bottom:6px; }
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:600px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:700px; }
 table { width:100%; border-collapse:collapse; }
 th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+.green { color:green; font-weight:bold; }
+.red { color:red; font-weight:bold; }
 .hidden { display:none; }
 </style>
 </head>
@@ -23,12 +25,13 @@ th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 <nav id="menu" class="hidden">
   <button id="btnDir">Directorio</button>
   <button id="btnAlta">Alta Alumno</button>
+  <button id="btnCob">Cobranza</button>
   <button id="btnOut">Salir</button>
 </nav>
 
 <div id="app"></div>
 
-<!-- ✅ FIREBASE BIEN CARGADO -->
+<!-- ✅ FIREBASE CORRECTO -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -53,7 +56,7 @@ function mostrarLogin(){
   menu.classList.add("hidden");
   app.innerHTML = `
     <div class="card">
-      <h2>Login</h2>
+      <h2>Login Maestro</h2>
       <input id="u" placeholder="Usuario">
       <input id="p" type="password" placeholder="Contraseña">
       <button id="go">Entrar</button>
@@ -62,17 +65,16 @@ function mostrarLogin(){
   document.getElementById("go").onclick = login;
 }
 
-async function login(){
+function login(){
   const u = document.getElementById("u").value.trim();
   const p = document.getElementById("p").value.trim();
 
   if(u === "admin" && p === "admin"){
     menu.classList.remove("hidden");
     mostrarDirectorio();
-    return;
+  } else {
+    alert("Credenciales incorrectas");
   }
-
-  alert("Solo login maestro en este paso");
 }
 
 document.getElementById("btnOut").onclick = () => location.reload();
@@ -84,16 +86,20 @@ async function mostrarDirectorio(){
 
   app.innerHTML = `
     <div class="card">
-      <h2>Directorio de Alumnos</h2>
+      <h2>Directorio</h2>
       <table>
         <tr>
           <th>Nombre</th>
           <th>Usuario</th>
+          <th>Estatus</th>
         </tr>
         ${alumnos.map(a => `
           <tr>
             <td>${a.nombre}</td>
             <td>${a.usuario}</td>
+            <td class="${a.pagado ? 'green' : 'red'}">
+              ${a.pagado ? 'Al corriente' : 'Pendiente'}
+            </td>
           </tr>
         `).join("")}
       </table>
@@ -119,7 +125,8 @@ async function registrarAlumno(){
   const alumno = {
     usuario: ru.value.trim(),
     pass: rp.value.trim(),
-    nombre: rn.value.trim()
+    nombre: rn.value.trim(),
+    pagado: false
   };
 
   if(!alumno.usuario || !alumno.pass || !alumno.nombre){
@@ -131,9 +138,44 @@ async function registrarAlumno(){
   mostrarDirectorio();
 }
 
+/* ===== COBRANZA ===== */
+async function mostrarCobranza(){
+  const snap = await db.collection("alumnos").get();
+  const alumnos = snap.docs.map(d => d.data());
+
+  app.innerHTML = `
+    <div class="card">
+      <h2>Cobranza</h2>
+      ${alumnos.map(a => `
+        <div class="card">
+          <b>${a.nombre}</b><br>
+          Estatus:
+          <span class="${a.pagado ? 'green' : 'red'}">
+            ${a.pagado ? 'Al corriente' : 'Pendiente'}
+          </span><br><br>
+          ${a.pagado
+            ? '<small>Sin pagos pendientes</small>'
+            : `<button onclick="registrarPago('${a.usuario}')">
+                Registrar pago
+              </button>`
+          }
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function registrarPago(usuario){
+  await db.collection("alumnos").doc(usuario).update({
+    pagado: true
+  });
+  mostrarCobranza();
+}
+
 /* ===== MENU ===== */
 document.getElementById("btnDir").onclick = mostrarDirectorio;
 document.getElementById("btnAlta").onclick = mostrarAlta;
+document.getElementById("btnCob").onclick = mostrarCobranza;
 </script>
 
 </body>
