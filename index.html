@@ -2,18 +2,19 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Paso 4B</title>
+<title>Nihongo – Paso 5</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
 nav { margin-bottom:15px; }
 button { padding:6px 10px; margin-right:6px; }
 input, select { padding:6px; width:100%; margin-bottom:6px; }
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:700px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:800px; }
 table { width:100%; border-collapse:collapse; }
-th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+th, td { border:1px solid #ccc; padding:6px; }
 .green { color:green; font-weight:bold; }
 .red { color:red; font-weight:bold; }
+.orange { color:#c47f00; font-weight:bold; }
 .hidden { display:none; }
 </style>
 </head>
@@ -32,11 +33,15 @@ th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 
 <div id="app"></div>
 
-<!-- ✅ Firebase -->
+<!-- ✅ FIREBASE CORRECTO -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
+/* ===== CONFIG ===== */
+const PASO_ACTUAL = "5";
+
+/* ===== FIREBASE ===== */
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
@@ -44,34 +49,59 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
+/* ===== ESTADO ===== */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 
-/* LOGIN */
+/* ===== ARRANQUE ===== */
+mostrarLogin();
+
+/* ===== LOGIN ===== */
 function mostrarLogin(){
   menu.classList.add("hidden");
   app.innerHTML = `
     <div class="card">
-      <h2>Login Maestro</h2>
+      <h2>Login – Paso ${PASO_ACTUAL}</h2>
       <input id="u" placeholder="Usuario">
       <input id="p" type="password" placeholder="Contraseña">
       <button id="go">Entrar</button>
     </div>`;
   go.onclick = login;
 }
+
 function login(){
   if(u.value==="admin" && p.value==="admin"){
     menu.classList.remove("hidden");
     mostrarDirectorio();
   } else alert("Credenciales incorrectas");
 }
-btnOut.onclick = () => location.reload();
-mostrarLogin();
 
-/* DIRECTORIO */
+btnOut.onclick = () => location.reload();
+
+/* ===== UTILIDAD FECHAS ===== */
+function sumarDias(fechaISO, dias){
+  const f = new Date(fechaISO);
+  f.setDate(f.getDate() + dias);
+  return f;
+}
+
+/* ===== ESTATUS AUTOMÁTICO ===== */
+function calcularEstatus(alumno, modalidad){
+  if(!alumno.inicioCobro) return {txt:"Pendiente", cls:"orange"};
+
+  const base = alumno.ultimoPago || alumno.inicioCobro;
+  const vence = sumarDias(base, modalidad.recurrenciaDias);
+  const hoy = new Date();
+
+  if(hoy > vence) return {txt:"Adeudo", cls:"red"};
+  return {txt:"Al corriente", cls:"green"};
+}
+
+/* ===== DIRECTORIO ===== */
 async function mostrarDirectorio(){
   const alumnosSnap = await db.collection("alumnos").get();
   const modsSnap = await db.collection("modalidades").get();
+
   const alumnos = alumnosSnap.docs.map(d=>d.data());
   const mods = modsSnap.docs.map(d=>d.data());
 
@@ -79,22 +109,25 @@ async function mostrarDirectorio(){
     <div class="card">
       <h2>Directorio</h2>
       <table>
-        <tr><th>Nombre</th><th>Modalidad</th><th>Estatus</th></tr>
+        <tr>
+          <th>Nombre</th>
+          <th>Modalidad</th>
+          <th>Estatus</th>
+        </tr>
         ${alumnos.map(a=>{
           const m = mods.find(x=>x.id===a.modalidadId);
+          const e = m ? calcularEstatus(a,m) : {txt:"-",cls:""};
           return `<tr>
             <td>${a.nombre}</td>
             <td>${m?m.nombre:"-"}</td>
-            <td class="${a.pagado?"green":"red"}">
-              ${a.pagado?"Al corriente":"Pendiente"}
-            </td>
+            <td class="${e.cls}">${e.txt}</td>
           </tr>`;
         }).join("")}
       </table>
     </div>`;
 }
 
-/* ALTA */
+/* ===== ALTA ALUMNO ===== */
 async function mostrarAlta(){
   const snap = await db.collection("modalidades").get();
   const mods = snap.docs.map(d=>d.data());
@@ -109,22 +142,26 @@ async function mostrarAlta(){
       <select id="rm">
         ${mods.map(m=>`<option value="${m.id}">${m.nombre}</option>`).join("")}
       </select>
+      <label>Inicio de cobro:</label>
+      <input id="ri" type="date">
       <button id="reg">Registrar</button>
     </div>`;
   reg.onclick = registrarAlumno;
 }
+
 async function registrarAlumno(){
   await db.collection("alumnos").doc(ru.value).set({
     usuario:ru.value,
     pass:rp.value,
     nombre:rn.value,
     modalidadId:rm.value,
-    pagado:false
+    inicioCobro:ri.value,
+    ultimoPago:null
   });
   mostrarDirectorio();
 }
 
-/* MODALIDADES */
+/* ===== MODALIDADES ===== */
 async function mostrarModalidades(){
   const snap = await db.collection("modalidades").get();
   const mods = snap.docs.map(d=>d.data());
@@ -139,11 +176,12 @@ async function mostrarModalidades(){
 
       <h3>Existentes</h3>
       <ul>
-        ${mods.map(m=>`<li>${m.nombre} – $${m.monto} / ${m.recurrenciaDias} días</li>`).join("")}
+        ${mods.map(m=>`<li>${m.nombre} – ${m.recurrenciaDias} días</li>`).join("")}
       </ul>
     </div>`;
   add.onclick = crearModalidad;
 }
+
 async function crearModalidad(){
   const id = mn.value.toLowerCase().replace(/\s+/g,"_");
   await db.collection("modalidades").doc(id).set({
@@ -152,29 +190,36 @@ async function crearModalidad(){
   mostrarModalidades();
 }
 
-/* COBRANZA */
+/* ===== COBRANZA ===== */
 async function mostrarCobranza(){
-  const snap = await db.collection("alumnos").get();
-  const alumnos = snap.docs.map(d=>d.data());
+  const alumnosSnap = await db.collection("alumnos").get();
+  const modsSnap = await db.collection("modalidades").get();
+  const alumnos = alumnosSnap.docs.map(d=>d.data());
+  const mods = modsSnap.docs.map(d=>d.data());
+
   app.innerHTML = `
     <div class="card">
       <h2>Cobranza</h2>
-      ${alumnos.map(a=>`
-        <div class="card">
+      ${alumnos.map(a=>{
+        const m = mods.find(x=>x.id===a.modalidadId);
+        const e = m ? calcularEstatus(a,m) : {txt:"-",cls:""};
+        return `<div class="card">
           <b>${a.nombre}</b><br>
-          <span class="${a.pagado?"green":"red"}">
-            ${a.pagado?"Al corriente":"Pendiente"}
-          </span><br>
-          ${a.pagado?"":"<button onclick=\"registrarPago('"+a.usuario+"')\">Registrar pago</button>"}
-        </div>`).join("")}
+          <span class="${e.cls}">${e.txt}</span><br><br>
+          <button onclick="registrarPago('${a.usuario}')">Registrar pago</button>
+        </div>`;
+      }).join("")}
     </div>`;
 }
-async function registrarPago(u){
-  await db.collection("alumnos").doc(u).update({pagado:true});
+
+async function registrarPago(usuario){
+  await db.collection("alumnos").doc(usuario).update({
+    ultimoPago: new Date().toISOString().substring(0,10)
+  });
   mostrarCobranza();
 }
 
-/* MENU */
+/* ===== MENU ===== */
 btnDir.onclick = mostrarDirectorio;
 btnAlta.onclick = mostrarAlta;
 btnMods.onclick = mostrarModalidades;
