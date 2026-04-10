@@ -1,206 +1,22 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Paso 4</title>
-
-<style>
-body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-nav { margin-bottom:15px; }
-button { padding:6px 10px; margin-right:6px; }
-input, select { padding:6px; width:100%; margin-bottom:6px; }
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:700px; }
-table { width:100%; border-collapse:collapse; }
-th, td { border:1px solid #ccc; padding:6px; text-align:left; }
-.green { color:green; font-weight:bold; }
-.red { color:red; font-weight:bold; }
-.hidden { display:none; }
-</style>
+<title>PRUEBA DEFINITIVA</title>
 </head>
 
 <body>
 
-<h1>Nihongo App</h1>
+<h1>PRUEBA DEFINITIVA</h1>
 
-<nav id="menu" class="hidden">
-  <button id="btnDir">Directorio</button>
-  <button id="btnAlta">Alta Alumno</button>
-  <button id="btnMods">Modalidades</button>
-  <button id="btnCob">Cobranza</button>
-  <button id="btnOut">Salir</button>
-</nav>
+<div id="estado">JS NO ejecutado</div>
 
-<div id="app"></div>
+<!-- ✅ SOLO FIREBASE APP -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.jsdocument.getElementById("estado").innerText =
+    "✅ JavaScript ejecutado correctamente";
 
-<!-- ✅ FIREBASE BIEN CARGADO (AMBOS) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compatrc="https://www.gstatic.com/firebasejs/10.12irestore-compat.js
-
-<script>
-/* ===== FIREBASE ===== */
-firebase.initializeApp({
-  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-  authDomain: "nihongoapp-85125.firebaseapp.com",
-  projectId: "nihongoapp-85125"
-});
-const db = firebase.firestore();
-
-/* ===== ESTADO ===== */
-const app = document.getElementById("app");
-const menu = document.getElementById("menu");
-
-/* ===== ARRANQUE ===== */
-mostrarLogin();
-
-/* ===== LOGIN ===== */
-function mostrarLogin(){
-  menu.classList.add("hidden");
-  app.innerHTML = `
-    <div class="card">
-      <h2>Login Maestro</h2>
-      <input id="u" placeholder="Usuario">
-      <input id="p" type="password" placeholder="Contraseña">
-      <button id="go">Entrar</button>
-    </div>
-  `;
-  document.getElementById("go").onclick = login;
-}
-
-function login(){
-  if(u.value === "admin" && p.value === "admin"){
-    menu.classList.remove("hidden");
-    mostrarDirectorio();
-  } else {
-    alert("Credenciales incorrectas");
-  }
-}
-
-document.getElementById("btnOut").onclick = () => location.reload();
-
-/* ===== DIRECTORIO ===== */
-async function mostrarDirectorio(){
-  const alumnosSnap = await db.collection("alumnos").get();
-  const modsSnap = await db.collection("modalidades").get();
-
-  const alumnos = alumnosSnap.docs.map(d => d.data());
-  const mods = modsSnap.docs.map(d => d.data());
-
-  app.innerHTML = `
-    <div class="card">
-      <h2>Directorio</h2>
-      <table>
-        <tr>
-          <th>Nombre</th>
-          <th>Modalidad</th>
-          <th>Estatus</th>
-        </tr>
-        ${alumnos.map(a => {
-          const m = mods.find(x => x.id === a.modalidadId);
-          return `
-            <tr>
-              <td>${a.nombre}</td>
-              <td>${m ? m.nombre : "-"}</td>
-              <td class="${a.pagado ? "green" : "red"}">
-                ${a.pagado ? "Al corriente" : "Pendiente"}
-              </td>
-            </tr>
-          `;
-        }).join("")}
-      </table>
-    </div>
-  `;
-}
-
-/* ===== ALTA ===== */
-async function mostrarAlta(){
-  const modsSnap = await db.collection("modalidades").get();
-  const mods = modsSnap.docs.map(d => d.data());
-
-  app.innerHTML = `
-    <div class="card">
-      <h2>Alta Alumno</h2>
-      <input id="ru" placeholder="Usuario">
-      <input id="rp" placeholder="Contraseña">
-      <input id="rn" placeholder="Nombre">
-      <select id="rm">
-        ${mods.map(m => `<option value="${m.id}">${m.nombre}</option>`).join("")}
-      </select>
-      <button id="reg">Registrar</button>
-    </div>
-  `;
-  document.getElementById("reg").onclick = registrarAlumno;
-}
-
-async function registrarAlumno(){
-  await db.collection("alumnos").doc(ru.value).set({
-    usuario: ru.value,
-    pass: rp.value,
-    nombre: rn.value,
-    modalidadId: rm.value,
-    pagado: false
-  });
-  mostrarDirectorio();
-}
-
-/* ===== MODALIDADES ===== */
-function mostrarModalidades(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Modalidades</h2>
-      <input id="mn" placeholder="Nombre">
-      <input id="mm" type="number" placeholder="Monto">
-      <input id="mr" type="number" placeholder="Recurrencia (días)">
-      <button id="add">Agregar</button>
-    </div>
-  `;
-  document.getElementById("add").onclick = crearModalidad;
-}
-
-async function crearModalidad(){
-  const id = mn.value.toLowerCase().replace(/\s+/g, "_");
-  await db.collection("modalidades").doc(id).set({
-    id,
-    nombre: mn.value,
-    monto: Number(mm.value),
-    recurrenciaDias: Number(mr.value)
-  });
-  mostrarModalidades();
-}
-
-/* ===== COBRANZA ===== */
-async function mostrarCobranza(){
-  const snap = await db.collection("alumnos").get();
-  const alumnos = snap.docs.map(d => d.data());
-
-  app.innerHTML = `
-    <div class="card">
-      <h2>Cobranza</h2>
-      ${alumnos.map(a => `
-        <div class="card">
-          <b>${a.nombre}</b><br>
-          Estatus:
-          <span class="${a.pagado ? "green" : "red"}">
-            ${a.pagado ? "Al corriente" : "Pendiente"}
-          </span><br><br>
-          ${a.pagado
-            ? "<small>Sin pagos pendientes</small>"
-            : `<button onclick="registrarPago('${a.usuario}')">Registrar pago</button>`
-          }
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-async function registrarPago(usuario){
-  await db.collection("alumnos").doc(usuario).update({ pagado: true });
-  mostrarCobranza();
-}
-
-/* ===== MENU ===== */
-document.getElementById("btnDir").onclick = mostrarDirectorio;
-document.getElementById("btnAlta").onclick = mostrarAlta;
-document.getElementById("btnMods").onclick = mostrarModalidades;
-document.getElementById("btnCob").onclick = mostrarCobranza;
+  console.log("JS OK");
 </script>
 
 </body>
