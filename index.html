@@ -6,18 +6,9 @@
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-nav { margin-bottom:15px; }
-button { padding:6px 10px; margin-right:6px; }
-input, select { padding:6px; width:100%; margin-bottom:6px; }
-.card { background:#fff; padding:15px; margin-bottom:12px; border-radius:6px; }
-table { width:100%; border-collapse:collapse; }
-th,td { border:1px solid #ccc; padding:6px; }
-.green{color:green;font-weight:bold}
-.red{color:red;font-weight:bold}
-.yellow{color:#c49b00;font-weight:bold}
-.hidden{display:none}
-small{color:#666}
-a.disabled{pointer-events:none;color:#999;text-decoration:none}
+button { padding:6px 10px; margin:5px 0; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
+.hidden { display:none; }
 </style>
 </head>
 
@@ -25,307 +16,92 @@ a.disabled{pointer-events:none;color:#999;text-decoration:none}
 
 <h1>Nihongo App – Fase 5.2</h1>
 
-<nav id="menu" class="hidden">
-  <button id="btnDash">Dashboard</button>
-  <button id="btnDir">Directorio</button>
-  <button id="btnAlta">Alta Alumno</button>
-  <button id="btnMods">Modalidades</button>
-  <button id="btnGrupos">Grupos</button>
-  <button id="btnClases">Próxima Clase</button>
-  <button id="btnCob">Cobranza</button>
-  <button id="btnOut">Salir</button>
-</nav>
+<div id="app">Cargando…</div>
 
-<div id="app"></div>
-
-<!-- ✅ SCRIPTS CORRECTOS (NO SE TOCAN) -->
-<script src="https://www.gstatic.com/firebasejs/10.-app-compat.js
-<script src="https://www.gstatic.com/firebaserebase-firestore-compat.js
+<!-- ✅ SCRIPTS BIEN CARGADOS (OBLIGATORIO) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-ript>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
-/* ================= FIREBASE ================= */
+/* ================= PRUEBA BASE ================= */
+console.log("JS ejecutando");
+
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
   projectId: "nihongoapp-85125"
 });
+
 const db = firebase.firestore();
-
-/* ================= ESTADO ================= */
 const app = document.getElementById("app");
-const menu = document.getElementById("menu");
-const MAESTRO = { user:"admin", pass:"admin" };
 
-let alumnos = [];
-let modalidades = [];
-let grupos = [];
-let clases = [];
+/* ================= LOGIN SIMPLE ================= */
+app.innerHTML = `
+  <div class="card">
+    <h2>Login Maestro</h2>
+    <input id="u" placeholder="Usuario"><br>
+    <input id="p" type="password" placeholder="Contraseña"><br>
+    <button id="login">Entrar</button>
+  </div>
+`;
 
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", init);
+document.getElementById("login").onclick = async () => {
+  const u = document.getElementById("u").value;
+  const p = document.getElementById("p").value;
 
-async function init(){
-  alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
-  modalidades = (await db.collection("modalidades").get()).docs.map(d=>({...d.data(),id:d.id}));
-  grupos = (await db.collection("grupos").get()).docs.map(d=>({...d.data(),id:d.id}));
-  clases = (await db.collection("clases").get()).docs.map(d=>({...d.data(),id:d.id}));
-
-  const s = JSON.parse(localStorage.getItem("sesion"));
-  if(!s){ mostrarLogin(); return; }
-
-  if(s.tipo==="maestro"){
-    menu.classList.remove("hidden");
-    dashboard();
+  if (u === "admin" && p === "admin") {
+    mostrarPanel();
     return;
   }
 
-  if(s.tipo==="alumno"){
-    const a = alumnos.find(x=>x.usuario===s.usuario);
-    if(a){ vistaAlumno(a); return; }
+  const snap = await db.collection("alumnos").doc(u).get();
+  if (snap.exists && snap.data().pass === p) {
+    mostrarAlumno(snap.data());
+    return;
   }
 
-  mostrarLogin();
-}
-
-/* ================= LOGIN ================= */
-function mostrarLogin(){
-  menu.classList.add("hidden");
-  app.innerHTML = `
-    <div class="card">
-      <h2>Login</h2>
-      <input id="u" placeholder="Usuario">
-      <input id="p" type="password" placeholder="Contraseña">
-      <button id="go">Entrar</button>
-    </div>`;
-  document.getElementById("go").onclick = login;
-}
-
-async function login(){
-  if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
-    localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
-    init(); return;
-  }
-  const snap = await db.collection("alumnos").doc(u.value).get();
-  if(snap.exists && snap.data().pass===p.value){
-    localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u.value}));
-    init(); return;
-  }
   alert("Credenciales incorrectas");
-}
+};
 
-function logout(){
-  localStorage.clear();
-  location.reload();
-}
-
-/* ================= ESTATUS ================= */
-function estatus(a){
-  const pagoIns = (a.pagos||[]).find(p=>p.tipo==="inscripcion");
-  if(!pagoIns) return {t:"Pendiente de inscripción",c:"yellow"};
-
-  const mod = modalidades.find(m=>m.id===a.modId);
-  if(!mod || mod.tipo!=="recurrente") return {t:"Al corriente",c:"green"};
-
-  const ult = (a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
-  if(!ult) return {t:"Adeudo",c:"red"};
-
-  const v = new Date(ult.fecha);
-  v.setDate(v.getDate()+mod.recurrenciaDias);
-  return new Date()<=v ? {t:"Al corriente",c:"green"} : {t:"Adeudo",c:"red"};
-}
-
-/* ================= DASHBOARD ================= */
-function dashboard(){
+/* ================= PANEL MAESTRO ================= */
+function mostrarPanel() {
   app.innerHTML = `
     <div class="card">
-      <h2>Dashboard</h2>
-      <p>Alumnos: ${alumnos.length}</p>
-    </div>`;
-}
-
-/* ================= DIRECTORIO ================= */
-function directorio(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Directorio</h2>
-      <table>
-        <tr><th>Alumno</th><th>Grupo</th><th>Estatus</th></tr>
-        ${alumnos.map(a=>{
-          const e = estatus(a);
-          const g = grupos.find(x=>x.id===a.grupoId);
-          return `
-            <tr>
-              <td>${a.nombre}</td>
-              <td>${g?.nombre||""}</td>
-              <td class="${e.c}">${e.t}</td>
-            </tr>`;
-        }).join("")}
-      </table>
-    </div>`;
-}
-
-/* ================= ALTA ================= */
-function alta(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Alta Alumno</h2>
-      <input id="ru" placeholder="Usuario">
-      <input id="rp" placeholder="Contraseña">
-      <input id="rn" placeholder="Nombre">
-      <select id="rm">
-        ${modalidades.filter(m=>m.tipo!=="inscripcion")
-          .map(m=>`<option value="${m.id}">${m.nombre}</option>`).join("")}
-      </select>
-      <select id="rg">
-        ${grupos.map(g=>`<option value="${g.id}">${g.nombre}</option>`).join("")}
-      </select>
-      <button id="crear">Crear</button>
-    </div>`;
-  document.getElementById("crear").onclick = crearAlumno;
-}
-
-async function crearAlumno(){
-  await db.collection("alumnos").doc(ru.value).set({
-    usuario:ru.value,
-    pass:rp.value,
-    nombre:rn.value,
-    modId:rm.value,
-    grupoId:rg.value,
-    pagos:[]
-  });
-  init();
-}
-
-/* ================= MODALIDADES ================= */
-function mods(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Modalidades</h2>
-      <input id="mn" placeholder="Nombre">
-      <input id="mm" type="number" placeholder="Monto">
-      <select id="mt">
-        <option value="recurrente">Recurrente</option>
-        <option value="unica">Única</option>
-      </select>
-      <input id="mr" type="number" placeholder="Recurrencia días">
-      <button id="addMod">Agregar</button>
-    </div>`;
-  document.getElementById("addMod").onclick = crearMod;
-}
-
-async function crearMod(){
-  const id = mn.value.toLowerCase().replace(/\s+/g,"_");
-  await db.collection("modalidades").doc(id).set({
-    id,
-    nombre:mn.value,
-    monto:+mm.value,
-    tipo:mt.value,
-    recurrenciaDias:+mr.value||0
-  });
-  init();
-}
-
-/* ================= GRUPOS ================= */
-function gruposUI(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Grupos</h2>
-      <input id="gn" placeholder="Nombre">
-      <input id="gd" placeholder="Días">
-      <input id="gh" placeholder="Hora">
-      <input id="gt" placeholder="Link Grupo Teams">
-      <button id="addGrupo">Agregar</button>
-    </div>`;
-  document.getElementById("addGrupo").onclick = crearGrupo;
-}
-
-async function crearGrupo(){
-  await db.collection("grupos").add({
-    nombre:gn.value,
-    dias:gd.value,
-    hora:gh.value,
-    linkGrupo:gt.value
-  });
-  init();
-}
-
-/* ================= CLASES ================= */
-function clasesUI(){
-  app.innerHTML = grupos.map(g=>`
-    <div class="card">
-      <b>${g.nombre}</b>
-      <input id="tema_${g.id}" placeholder="Tema">
-      <input id="link_${g.id}" placeholder="Link reunión">
-      <button onclick="guardarClase('${g.id}')">Guardar</button>
+      <h2>Panel Maestro</h2>
+      <button id="verAlumnos">Ver alumnos</button>
+      <button id="logout">Salir</button>
     </div>
-  `).join("");
+    <div id="contenido"></div>
+  `;
+
+  document.getElementById("verAlumnos").onclick = cargarAlumnos;
+  document.getElementById("logout").onclick = () => location.reload();
 }
 
-async function guardarClase(grupoId){
-  await db.collection("clases").doc(grupoId).set({
-    grupoId,
-    tema:document.getElementById("tema_"+grupoId).value,
-    link:document.getElementById("link_"+grupoId).value,
-    fecha:new Date().toISOString()
-  });
-  init();
+async function cargarAlumnos() {
+  const cont = document.getElementById("contenido");
+  const snap = await db.collection("alumnos").get();
+
+  cont.innerHTML = `
+    <div class="card">
+      <h3>Alumnos</h3>
+      <ul>
+        ${snap.docs.map(d => `<li>${d.data().nombre}</li>`).join("")}
+      </ul>
+    </div>
+  `;
 }
 
-/* ================= COBRANZA ================= */
-function cob(){
-  app.innerHTML = alumnos.map(a=>{
-    const e = estatus(a);
-    return `
-      <div class="card">
-        <b>${a.nombre}</b>
-        <p class="${e.c}">${e.t}</p>
-        ${e.t!=="Al corriente"
-          ? `<button onclick="pagar('${a.usuario}')">Registrar pago</button>`
-          : `<small>Sin pagos pendientes</small>`}
-      </div>`;
-  }).join("");
-}
-
-async function pagar(u){
-  const a = alumnos.find(x=>x.usuario===u);
-  if(!(a.pagos||[]).find(p=>p.tipo==="inscripcion")){
-    a.pagos.push({tipo:"inscripcion",fecha:new Date().toISOString(),monto:500});
-  }else{
-    const m = modalidades.find(x=>x.id===a.modId);
-    a.pagos.push({tipo:"recurrente",fecha:new Date().toISOString(),monto:m.monto});
-  }
-  await db.collection("alumnos").doc(u).set(a);
-  init();
-}
-
-/* ================= VISTA ALUMNO ================= */
-function vistaAlumno(a){
-  const e = estatus(a);
-  const g = grupos.find(x=>x.id===a.grupoId);
-  const c = clases.find(x=>x.grupoId===a.grupoId);
+/* ================= PANEL ALUMNO ================= */
+function mostrarAlumno(a) {
   app.innerHTML = `
     <div class="card">
       <h2>${a.nombre}</h2>
-      <p class="${e.c}">${e.t}</p>
-      <p>Grupo: ${g?.nombre||""}</p>
-      <p>Tema próximo: ${c?.tema||""}</p>
-      ${e.t==="Al corriente"
-        ? `<a href="${Entrar a clase</a><br>
-           <ag?.linkGrupo||Ir al grupo</a>`
-        : `<small>Acceso bloqueado por estatus</small>`}
-      <br><button onclick="logout()">Salir</button>
-    </div>`;
+      <p>Acceso correcto</p>
+      <button onclick="location.reload()">Salir</button>
+    </div>
+  `;
 }
-
-/* ================= MENU ================= */
-btnDash.onclick=dashboard;
-btnDir.onclick=directorio;
-btnAlta.onclick=alta;
-btnMods.onclick=mods;
-btnGrupos.onclick=gruposUI;
-btnClases.onclick=clasesUI;
-btnCob.onclick=cob;
-btnOut.onclick=logout;
 </script>
 
 </body>
