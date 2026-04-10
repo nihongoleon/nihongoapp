@@ -2,23 +2,192 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>PRUEBA SCRIPT</title>
+<title>Nihongo – Paso 4A</title>
+
+<style>
+body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
+nav { margin-bottom:15px; }
+button { padding:6px 10px; margin-right:6px; }
+input, select { padding:6px; width:100%; margin-bottom:6px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:700px; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+.green { color:green; font-weight:bold; }
+.red { color:red; font-weight:bold; }
+.hidden { display:none; }
+</style>
 </head>
 
 <body>
 
-<h1>PRUEBA SCRIPT</h1>
+<h1>Nihongo App</h1>
 
-<div id="estado">JS NO ejecutado</div>
+<nav id="menu" class="hidden">
+  <button id="btnDir">Directorio</button>
+  <button id="btnAlta">Alta Alumno</button>
+  <button id="btnMods">Modalidades</button>
+  <button id="btnCob">Cobranza</button>
+  <button id="btnOut">Salir</button>
+</nav>
 
-<!-- AQUÍ EMPIEZA EL SCRIPT -->
+<div id="app"></div>
+
 <script>
-  console.log("SCRIPT EJECUTADO");
+/* ================= ESTADO EN MEMORIA ================= */
+let alumnos = [];
+let modalidades = [];
 
-  document.getElementById("estado").innerText =
-    "✅ JavaScript ejecutado correctamente";
+/* ================= ARRANQUE ================= */
+mostrarLogin();
+
+/* ================= LOGIN ================= */
+function mostrarLogin(){
+  document.getElementById("menu").classList.add("hidden");
+  app.innerHTML = `
+    <div class="card">
+      <h2>Login Maestro</h2>
+      <input id="u" placeholder="Usuario">
+      <input id="p" type="password" placeholder="Contraseña">
+      <button id="go">Entrar</button>
+    </div>
+  `;
+  document.getElementById("go").onclick = login;
+}
+
+function login(){
+  if(u.value === "admin" && p.value === "admin"){
+    document.getElementById("menu").classList.remove("hidden");
+    mostrarDirectorio();
+  } else {
+    alert("Credenciales incorrectas");
+  }
+}
+
+document.getElementById("btnOut").onclick = () => location.reload();
+
+/* ================= DIRECTORIO ================= */
+function mostrarDirectorio(){
+  app.innerHTML = `
+    <div class="card">
+      <h2>Directorio</h2>
+      <table>
+        <tr>
+          <th>Nombre</th>
+          <th>Modalidad</th>
+          <th>Estatus</th>
+        </tr>
+        ${alumnos.map(a => {
+          const m = modalidades.find(x => x.id === a.modalidadId);
+          return `
+            <tr>
+              <td>${a.nombre}</td>
+              <td>${m ? m.nombre : "-"}</td>
+              <td class="${a.pagado ? "green" : "red"}">
+                ${a.pagado ? "Al corriente" : "Pendiente"}
+              </td>
+            </tr>
+          `;
+        }).join("")}
+      </table>
+    </div>
+  `;
+}
+
+/* ================= ALTA ALUMNO ================= */
+function mostrarAlta(){
+  if(modalidades.length === 0){
+    alert("Primero crea una modalidad");
+    return;
+  }
+
+  app.innerHTML = `
+    <div class="card">
+      <h2>Alta Alumno</h2>
+      <input id="ru" placeholder="Usuario">
+      <input id="rp" placeholder="Contraseña">
+      <input id="rn" placeholder="Nombre">
+      <select id="rm">
+        ${modalidades.map(m => `<option value="${m.id}">${m.nombre}</option>`).join("")}
+      </select>
+      <button id="reg">Registrar</button>
+    </div>
+  `;
+  document.getElementById("reg").onclick = registrarAlumno;
+}
+
+function registrarAlumno(){
+  alumnos.push({
+    usuario: ru.value,
+    pass: rp.value,
+    nombre: rn.value,
+    modalidadId: rm.value,
+    pagado: false
+  });
+  mostrarDirectorio();
+}
+
+/* ================= MODALIDADES ================= */
+function mostrarModalidades(){
+  app.innerHTML = `
+    <div class="card">
+      <h2>Modalidades</h2>
+      <input id="mn" placeholder="Nombre">
+      <input id="mm" type="number" placeholder="Monto">
+      <input id="mr" type="number" placeholder="Recurrencia (días)">
+      <button id="add">Agregar</button>
+
+      <h3>Existentes</h3>
+      <ul>
+        ${modalidades.map(m => `<li>${m.nombre} ($${m.monto})</li>`).join("")}
+      </ul>
+    </div>
+  `;
+  document.getElementById("add").onclick = crearModalidad;
+}
+
+function crearModalidad(){
+  modalidades.push({
+    id: mn.value.toLowerCase().replace(/\s+/g,"_"),
+    nombre: mn.value,
+    monto: Number(mm.value),
+    recurrenciaDias: Number(mr.value)
+  });
+  mostrarModalidades();
+}
+
+/* ================= COBRANZA ================= */
+function mostrarCobranza(){
+  app.innerHTML = `
+    <div class="card">
+      <h2>Cobranza</h2>
+      ${alumnos.map((a,i) => `
+        <div class="card">
+          <b>${a.nombre}</b><br>
+          Estatus:
+          <span class="${a.pagado ? "green" : "red"}">
+            ${a.pagado ? "Al corriente" : "Pendiente"}
+          </span><br><br>
+          ${a.pagado
+            ? "<small>Sin pagos pendientes</small>"
+            : `<button onclick="registrarPago(${i})">Registrar pago</button>`
+          }
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function registrarPago(i){
+  alumnos[i].pagado = true;
+  mostrarCobranza();
+}
+
+/* ================= MENU ================= */
+document.getElementById("btnDir").onclick = mostrarDirectorio;
+document.getElementById("btnAlta").onclick = mostrarAlta;
+document.getElementById("btnMods").onclick = mostrarModalidades;
+document.getElementById("btnCob").onclick = mostrarCobranza;
 </script>
-<!-- AQUÍ TERMINA EL SCRIPT -->
 
 </body>
 </html>
