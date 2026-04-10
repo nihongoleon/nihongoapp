@@ -2,106 +2,20 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 5.2</title>
-
-<style>
-body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-button { padding:6px 10px; margin:5px 0; }
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; }
-.hidden { display:none; }
-</style>
+<title>PRUEBA JS</title>
 </head>
 
 <body>
 
-<h1>Nihongo App – Fase 5.2</h1>
+<h1>PRUEBA JS</h1>
 
-<div id="app">Cargando…</div>
-
-<!-- ✅ SCRIPTS BIEN CARGADOS (OBLIGATORIO) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-ript>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<div id="app">ANTES</div>
 
 <script>
-/* ================= PRUEBA BASE ================= */
-console.log("JS ejecutando");
+  console.log("JS CARGADO");
 
-firebase.initializeApp({
-  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-  authDomain: "nihongoapp-85125.firebaseapp.com",
-  projectId: "nihongoapp-85125"
-});
-
-const db = firebase.firestore();
-const app = document.getElementById("app");
-
-/* ================= LOGIN SIMPLE ================= */
-app.innerHTML = `
-  <div class="card">
-    <h2>Login Maestro</h2>
-    <input id="u" placeholder="Usuario"><br>
-    <input id="p" type="password" placeholder="Contraseña"><br>
-    <button id="login">Entrar</button>
-  </div>
-`;
-
-document.getElementById("login").onclick = async () => {
-  const u = document.getElementById("u").value;
-  const p = document.getElementById("p").value;
-
-  if (u === "admin" && p === "admin") {
-    mostrarPanel();
-    return;
-  }
-
-  const snap = await db.collection("alumnos").doc(u).get();
-  if (snap.exists && snap.data().pass === p) {
-    mostrarAlumno(snap.data());
-    return;
-  }
-
-  alert("Credenciales incorrectas");
-};
-
-/* ================= PANEL MAESTRO ================= */
-function mostrarPanel() {
-  app.innerHTML = `
-    <div class="card">
-      <h2>Panel Maestro</h2>
-      <button id="verAlumnos">Ver alumnos</button>
-      <button id="logout">Salir</button>
-    </div>
-    <div id="contenido"></div>
-  `;
-
-  document.getElementById("verAlumnos").onclick = cargarAlumnos;
-  document.getElementById("logout").onclick = () => location.reload();
-}
-
-async function cargarAlumnos() {
-  const cont = document.getElementById("contenido");
-  const snap = await db.collection("alumnos").get();
-
-  cont.innerHTML = `
-    <div class="card">
-      <h3>Alumnos</h3>
-      <ul>
-        ${snap.docs.map(d => `<li>${d.data().nombre}</li>`).join("")}
-      </ul>
-    </div>
-  `;
-}
-
-/* ================= PANEL ALUMNO ================= */
-function mostrarAlumno(a) {
-  app.innerHTML = `
-    <div class="card">
-      <h2>${a.nombre}</h2>
-      <p>Acceso correcto</p>
-      <button onclick="location.reload()">Salir</button>
-    </div>
-  `;
-}
+  document.getElementById("app").innerHTML =
+    "✅ JavaScript SÍ está ejecutándose";
 </script>
 
 </body>
