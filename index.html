@@ -33,7 +33,7 @@ th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 <div id="app"></div>
 
 <!-- ✅ FIREBASE BIEN CARGADO (AMBOS) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compatrc="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-ript>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compatrc="https://www.gstatic.com/firebasejs/10.12irestore-compat.js
 
 <script>
 /* ===== FIREBASE ===== */
@@ -95,13 +95,12 @@ async function mostrarDirectorio(){
         </tr>
         ${alumnos.map(a => {
           const m = mods.find(x => x.id === a.modalidadId);
-          const pagado = a.pagado;
           return `
             <tr>
               <td>${a.nombre}</td>
               <td>${m ? m.nombre : "-"}</td>
-              <td class="${pagado ? "green" : "red"}">
-                ${pagado ? "Al corriente" : "Pendiente"}
+              <td class="${a.pagado ? "green" : "red"}">
+                ${a.pagado ? "Al corriente" : "Pendiente"}
               </td>
             </tr>
           `;
