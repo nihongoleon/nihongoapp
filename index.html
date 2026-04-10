@@ -2,128 +2,42 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 5.2</title>
-
-<style>
-body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-nav { margin-bottom:15px; }
-button { padding:6px 10px; margin-right:6px; }
-input, select { padding:6px; width:100%; margin-bottom:6px; }
-.card { background:#fff; padding:15px; margin-bottom:12px; border-radius:6px; }
-table { width:100%; border-collapse:collapse; }
-th,td { border:1px solid #ccc; padding:6px; }
-.green{color:green;font-weight:bold}
-.red{color:red;font-weight:bold}
-.yellow{color:#c49b00;font-weight:bold}
-.hidden{display:none}
-small{color:#666}
-</style>
+<title>Firebase OK</title>
 </head>
 
 <body>
 
-<h1>Nihongo App – Fase 5.2</h1>
+<h1>Firebase OK</h1>
+<div id="out">Cargando…</div>
 
-<nav id="menu" class="hidden">
-  <button id="btnDash">Dashboard</button>
-  <button id="btnDir">Directorio</button>
-  <button id="btnAlta">Alta Alumno</button>
-  <button id="btnMods">Modalidades</button>
-  <button id="btnGrupos">Grupos</button>
-  <button id="btnClases">Próxima Clase</button>
-  <button id="btnCob">Cobranza</button>
-  <button id="btnOut">Salir</button>
-</nav>
+<!-- ✅ FIREBASE BIEN CARGADO (AMBOS SCRIPTS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-<div id="app">Cargando…</div>
-
-<!-- ✅ FIREBASE BIEN CARGADO (LOS DOS, NO UNO) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compatrc="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat
 <script>
-/* ================= FIREBASE ================= */
-firebase.initializeApp({
-  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-  authDomain: "nihongoapp-85125.firebaseapp.com",
-  projectId: "nihongoapp-85125"
-});
-const db = firebase.firestore();
+  console.log("JS cargó");
 
-/* ================= ESTADO ================= */
-const app = document.getElementById("app");
-const menu = document.getElementById("menu");
-const MAESTRO = { user:"admin", pass:"admin" };
+  // Inicializa Firebase
+  firebase.initializeApp({
+    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+    authDomain: "nihongoapp-85125.firebaseapp.com",
+    projectId: "nihongoapp-85125"
+  });
 
-let alumnos=[], modalidades=[], grupos=[], clases=[];
+  // Inicializa Firestore
+  const db = firebase.firestore();
 
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", init);
-
-async function init(){
-  alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
-  modalidades = (await db.collection("modalidades").get()).docs.map(d=>({...d.data(),id:d.id}));
-  grupos = (await db.collection("grupos").get()).docs.map(d=>({...d.data(),id:d.id}));
-  clases = (await db.collection("clases").get()).docs.map(d=>({...d.data(),id:d.id}));
-
-  const s = JSON.parse(localStorage.getItem("sesion"));
-  if(!s){ mostrarLogin(); return; }
-
-  if(s.tipo==="maestro"){
-    menu.classList.remove("hidden");
-    dashboard();
-    return;
-  }
-
-  if(s.tipo==="alumno"){
-    const a = alumnos.find(x=>x.usuario===s.usuario);
-    if(a){ vistaAlumno(a); return; }
-  }
-
-  mostrarLogin();
-}
-
-/* ================= LOGIN ================= */
-function mostrarLogin(){
-  menu.classList.add("hidden");
-  app.innerHTML = `
-    <div class="card">
-      <h2>Login</h2>
-      <input id="u" placeholder="Usuario">
-      <input id="p" type="password" placeholder="Contraseña">
-      <button id="go">Entrar</button>
-    </div>`;
-  document.getElementById("go").onclick = login;
-}
-
-async function login(){
-  if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
-    localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
-    init(); return;
-  }
-  const snap = await db.collection("alumnos").doc(u.value).get();
-  if(snap.exists && snap.data().pass===p.value){
-    localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u.value}));
-    init(); return;
-  }
-  alert("Credenciales incorrectas");
-}
-
-function logout(){
-  localStorage.clear();
-  location.reload();
-}
-
-/* ================= DASHBOARD ================= */
-function dashboard(){
-  app.innerHTML = `
-    <div class="card">
-      <h2>Dashboard</h2>
-      <p>Alumnos registrados: ${alumnos.length}</p>
-    </div>`;
-}
-
-/* ================= MENU ================= */
-btnDash.onclick = dashboard;
-btnOut.onclick = logout;
+  // Prueba real de Firestore
+  db.collection("alumnos").limit(1).get()
+    .then(() => {
+      document.getElementById("out").innerHTML =
+        "✅ Firebase App + Firestore FUNCIONAN";
+    })
+    .catch(err => {
+      document.getElementById("out").innerHTML =
+        "❌ Error Firestore: " + err.message;
+      console.error(err);
+    });
 </script>
 
 </body>
