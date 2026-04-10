@@ -2,14 +2,17 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Paso 1 Login</title>
+<title>Nihongo – Paso 2</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
-button { padding:6px 10px; margin:6px 0; }
-.card { background:#fff; padding:15px; border-radius:6px; max-width:400px; }
+nav { margin-bottom:15px; }
+button { padding:6px 10px; margin-right:6px; }
+input { padding:6px; width:100%; margin-bottom:6px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:6px; max-width:600px; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 .hidden { display:none; }
-nav button { margin-right:6px; }
 </style>
 </head>
 
@@ -18,17 +21,19 @@ nav button { margin-right:6px; }
 <h1>Nihongo App</h1>
 
 <nav id="menu" class="hidden">
-  <button id="btnHome">Home</button>
+  <button id="btnDir">Directorio</button>
+  <button id="btnAlta">Alta Alumno</button>
   <button id="btnOut">Salir</button>
 </nav>
 
 <div id="app"></div>
 
-<!-- ✅ Firebase BIEN cargado -->
+<!-- ✅ FIREBASE BIEN CARGADO -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
+/* ===== FIREBASE ===== */
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
@@ -36,18 +41,21 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
+/* ===== ESTADO ===== */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 
+/* ===== ARRANQUE ===== */
 mostrarLogin();
 
+/* ===== LOGIN ===== */
 function mostrarLogin(){
   menu.classList.add("hidden");
   app.innerHTML = `
     <div class="card">
       <h2>Login</h2>
-      <input id="u" placeholder="Usuario"><br>
-      <input id="p" type="password" placeholder="Contraseña"><br>
+      <input id="u" placeholder="Usuario">
+      <input id="p" type="password" placeholder="Contraseña">
       <button id="go">Entrar</button>
     </div>
   `;
@@ -58,38 +66,74 @@ async function login(){
   const u = document.getElementById("u").value.trim();
   const p = document.getElementById("p").value.trim();
 
-  // Maestro
-  if(u==="admin" && p==="admin"){
-    localStorage.setItem("sesion", JSON.stringify({tipo:"maestro"}));
-    mostrarHome("Maestro");
+  if(u === "admin" && p === "admin"){
+    menu.classList.remove("hidden");
+    mostrarDirectorio();
     return;
   }
 
-  // Alumno
-  const snap = await db.collection("alumnos").doc(u).get();
-  if(snap.exists && snap.data().pass===p){
-    localStorage.setItem("sesion", JSON.stringify({tipo:"alumno", usuario:u}));
-    mostrarHome("Alumno");
-    return;
-  }
-
-  alert("Credenciales incorrectas");
+  alert("Solo login maestro en este paso");
 }
 
-function mostrarHome(tipo){
-  menu.classList.remove("hidden");
+document.getElementById("btnOut").onclick = () => location.reload();
+
+/* ===== DIRECTORIO ===== */
+async function mostrarDirectorio(){
+  const snap = await db.collection("alumnos").get();
+  const alumnos = snap.docs.map(d => d.data());
+
   app.innerHTML = `
     <div class="card">
-      <h2>Bienvenido (${tipo})</h2>
-      <p>Login funcionando ✅</p>
+      <h2>Directorio de Alumnos</h2>
+      <table>
+        <tr>
+          <th>Nombre</th>
+          <th>Usuario</th>
+        </tr>
+        ${alumnos.map(a => `
+          <tr>
+            <td>${a.nombre}</td>
+            <td>${a.usuario}</td>
+          </tr>
+        `).join("")}
+      </table>
     </div>
   `;
 }
 
-document.getElementById("btnOut").onclick = () => {
-  localStorage.clear();
-  location.reload();
-};
+/* ===== ALTA ===== */
+function mostrarAlta(){
+  app.innerHTML = `
+    <div class="card">
+      <h2>Alta de Alumno</h2>
+      <input id="ru" placeholder="Usuario">
+      <input id="rp" placeholder="Contraseña">
+      <input id="rn" placeholder="Nombre">
+      <button id="reg">Registrar</button>
+    </div>
+  `;
+  document.getElementById("reg").onclick = registrarAlumno;
+}
+
+async function registrarAlumno(){
+  const alumno = {
+    usuario: ru.value.trim(),
+    pass: rp.value.trim(),
+    nombre: rn.value.trim()
+  };
+
+  if(!alumno.usuario || !alumno.pass || !alumno.nombre){
+    alert("Completa todos los campos");
+    return;
+  }
+
+  await db.collection("alumnos").doc(alumno.usuario).set(alumno);
+  mostrarDirectorio();
+}
+
+/* ===== MENU ===== */
+document.getElementById("btnDir").onclick = mostrarDirectorio;
+document.getElementById("btnAlta").onclick = mostrarAlta;
 </script>
 
 </body>
