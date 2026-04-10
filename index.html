@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Fase 5.2 (Seguimiento a Clases)</title>
+<title>Nihongo – Fase 5.2</title>
 
 <style>
 body { font-family: Arial; padding:30px; background:#f5f5f5; }
@@ -17,7 +17,7 @@ th,td { border:1px solid #ccc; padding:6px; }
 .yellow{color:#c49b00;font-weight:bold}
 .hidden{display:none}
 small{color:#666}
-a.disabled{pointer-events:none; color:#999; text-decoration:none}
+a.disabled{pointer-events:none;color:#999;text-decoration:none}
 </style>
 </head>
 
@@ -38,11 +38,11 @@ a.disabled{pointer-events:none; color:#999; text-decoration:none}
 
 <div id="app"></div>
 
-<!-- ✅ Scripts correctos -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+<!-- ✅ SCRIPTS BIEN CARGADOS -->
+<script src="https://www.gstatic.com/firebasejs/10.12pp-compat.js
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat
 <script>
+/* ================= FIREBASE ================= */
 firebase.initializeApp({
   apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
   authDomain: "nihongoapp-85125.firebaseapp.com",
@@ -50,31 +50,39 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
+/* ================= ESTADO ================= */
 const app = document.getElementById("app");
 const menu = document.getElementById("menu");
 const MAESTRO = { user:"admin", pass:"admin" };
 
 let alumnos=[], modalidades=[], grupos=[], clases=[];
 
-/* -------- INIT -------- */
+/* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded", init);
+
 async function init(){
   alumnos = (await db.collection("alumnos").get()).docs.map(d=>d.data());
-  modalidades = (await db.collection("modalidades").get()).docs.map(d=>d.data());
-  grupos = (await db.collection("grupos").get()).docs.map(d=>({...d.data(), id:d.id}));
-  clases = (await db.collection("clases").get()).docs.map(d=>({...d.data(), id:d.id}));
+  modalidades = (await db.collection("modalidades").get()).docs.map(d=>({...d.data(),id:d.id}));
+  grupos = (await db.collection("grupos").get()).docs.map(d=>({...d.data(),id:d.id}));
+  clases = (await db.collection("clases").get()).docs.map(d=>({...d.data(),id:d.id}));
 
   const s = JSON.parse(localStorage.getItem("sesion"));
   if(!s){ loginUI(); return; }
-  if(s.tipo==="maestro"){ menu.classList.remove("hidden"); dashboard(); return; }
+
+  if(s.tipo==="maestro"){
+    menu.classList.remove("hidden");
+    dashboard(); return;
+  }
+
   if(s.tipo==="alumno"){
     const a = alumnos.find(x=>x.usuario===s.usuario);
     if(a){ vistaAlumno(a); return; }
   }
+
   loginUI();
 }
 
-/* -------- LOGIN -------- */
+/* ================= LOGIN ================= */
 function loginUI(){
   menu.classList.add("hidden");
   app.innerHTML=`
@@ -86,38 +94,47 @@ function loginUI(){
     </div>`;
   go.onclick=login;
 }
+
 async function login(){
   if(u.value===MAESTRO.user && p.value===MAESTRO.pass){
     localStorage.setItem("sesion",JSON.stringify({tipo:"maestro"}));
     init(); return;
   }
-  const snap=await db.collection("alumnos").doc(u.value).get();
+  const snap = await db.collection("alumnos").doc(u.value).get();
   if(snap.exists && snap.data().pass===p.value){
     localStorage.setItem("sesion",JSON.stringify({tipo:"alumno",usuario:u.value}));
     init(); return;
   }
   alert("Credenciales incorrectas");
 }
-function logout(){ localStorage.clear(); location.reload(); }
 
-/* -------- ESTATUS -------- */
+function logout(){
+  localStorage.clear();
+  location.reload();
+}
+
+/* ================= ESTATUS ================= */
 function estatus(a){
-  const ins=(a.pagos||[]).find(p=>p.tipo==="inscripcion");
-  if(!ins) return {t:"Pendiente de inscripción",c:"yellow"};
-  const mod=modalidades.find(m=>m.id===a.modId);
+  const pagoIns = (a.pagos||[]).find(p=>p.tipo==="inscripcion");
+  if(!pagoIns) return {t:"Pendiente de inscripción",c:"yellow"};
+
+  const mod = modalidades.find(m=>m.id===a.modId);
   if(!mod || mod.tipo!=="recurrente") return {t:"Al corriente",c:"green"};
-  const ult=(a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
+
+  const ult = (a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
   if(!ult) return {t:"Adeudo",c:"red"};
-  const v=new Date(ult.fecha); v.setDate(v.getDate()+mod.recurrenciaDias);
+
+  const v=new Date(ult.fecha);
+  v.setDate(v.getDate()+mod.recurrenciaDias);
   return new Date()<=v?{t:"Al corriente",c:"green"}:{t:"Adeudo",c:"red"};
 }
 
-/* -------- DASHBOARD -------- */
+/* ================= DASHBOARD ================= */
 function dashboard(){
   app.innerHTML=`<div class="card"><h2>Dashboard</h2><p>OK</p></div>`;
 }
 
-/* -------- DIRECTORIO -------- */
+/* ================= DIRECTORIO ================= */
 function directorio(){
   app.innerHTML=`
     <div class="card">
@@ -137,7 +154,7 @@ function directorio(){
     </div>`;
 }
 
-/* -------- ALTA -------- */
+/* ================= ALTA ================= */
 function alta(){
   app.innerHTML=`
     <div class="card">
@@ -155,17 +172,21 @@ function alta(){
       <button onclick="crearAlumno()">Crear</button>
     </div>`;
 }
+
 async function crearAlumno(){
   await db.collection("alumnos").doc(ru.value).set({
-    usuario:ru.value, pass:rp.value, nombre:rn.value,
-    modId:rm.value, grupoId:rg.value,
+    usuario:ru.value,
+    pass:rp.value,
+    nombre:rn.value,
+    modId:rm.value,
+    grupoId:rg.value,
     inicioCobro:rInicio.value,
     pagos:[]
   });
   init();
 }
 
-/* -------- MODALIDADES -------- */
+/* ================= MODALIDADES ================= */
 function mods(){
   app.innerHTML=`
     <div class="card">
@@ -180,6 +201,7 @@ function mods(){
       <button onclick="crearMod()">Agregar</button>
     </div>`;
 }
+
 async function crearMod(){
   const id=mn.value.toLowerCase().replace(/\s+/g,"_");
   await db.collection("modalidades").doc(id).set({
@@ -188,41 +210,39 @@ async function crearMod(){
   init();
 }
 
-/* -------- GRUPOS -------- */
+/* ================= GRUPOS ================= */
 function gruposUI(){
   app.innerHTML=`
     <div class="card">
       <h2>Grupos</h2>
-      <input id="gn" placeholder="Nombre del grupo">
-      <input id="gd" placeholder="Días (ej. Mar/Jue)">
-      <input id="gh" placeholder="Hora (ej. 19:00)">
+      <input id="gn" placeholder="Nombre">
+      <input id="gd" placeholder="Días">
+      <input id="gh" placeholder="Hora">
       <input id="gt" placeholder="Link Grupo Teams">
       <button onclick="crearGrupo()">Agregar</button>
     </div>`;
 }
+
 async function crearGrupo(){
-  await db.collection("grupos").add({nombre:gn.value,dias:gd.value,hora:gh.value,linkGrupo:gt.value});
+  await db.collection("grupos").add({
+    nombre:gn.value,dias:gd.value,hora:gh.value,linkGrupo:gt.value
+  });
   init();
 }
 
-/* -------- PRÓXIMA CLASE (AUTOMATIZADA NIVEL 1) -------- */
+/* ================= CLASES ================= */
 function clasesUI(){
   app.innerHTML=grupos.map(g=>{
-    const prox=calcularProximaClase(g);
     return `
       <div class="card">
         <b>${g.nombre}</b>
-        <p>Próxima clase: ${prox}</p>
         <input id="tema_${g.id}" placeholder="Tema">
-        <input id="link_${g.id}" placeholder="Link reunión Teams">
+        <input id="link_${g.id}" placeholder="Link reunión">
         <button onclick="guardarClase('${g.id}')">Guardar</button>
       </div>`;
   }).join("");
 }
-function calcularProximaClase(g){
-  const hoy=new Date();
-  return hoy.toLocaleDateString()+" "+(g.hora||"");
-}
+
 async function guardarClase(grupoId){
   await db.collection("clases").doc(grupoId).set({
     grupoId,
@@ -233,7 +253,7 @@ async function guardarClase(grupoId){
   init();
 }
 
-/* -------- COBRANZA -------- */
+/* ================= COBRANZA ================= */
 function cob(){
   app.innerHTML=alumnos.map(a=>{
     const e=estatus(a);
@@ -245,6 +265,7 @@ function cob(){
       </div>`;
   }).join("");
 }
+
 async function pagar(u){
   const a=alumnos.find(x=>x.usuario===u);
   if(!(a.pagos||[]).find(p=>p.tipo==="inscripcion")){
@@ -257,7 +278,7 @@ async function pagar(u){
   init();
 }
 
-/* -------- VISTA ALUMNO -------- */
+/* ================= VISTA ALUMNO ================= */
 function vistaAlumno(a){
   const e=estatus(a);
   const g=grupos.find(x=>x.id===a.grupoId);
@@ -269,13 +290,15 @@ function vistaAlumno(a){
       <p>Grupo: ${g?.nombre||""}</p>
       <p>Tema próximo: ${c?.tema||""}</p>
       ${e.t==="Al corriente"?
-        `<a href="${c?.link||"#"}" target="_  `<small>Acceso bloqueado por estatus</small>`
+        `<a href="${c?.link||"#ase</a><br>
+         ${g?.linkGrupo||Ir al grupo</a>`:
+        `<small>Acceso bloqueado por estatus</small>`
       }
       <br><button onclick="logout()">Salir</button>
     </div>`;
 }
 
-/* -------- MENU -------- */
+/* ================= MENU ================= */
 btnDash.onclick=dashboard;
 btnDir.onclick=directorio;
 btnAlta.onclick=alta;
