@@ -2,42 +2,94 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Firebase OK</title>
+<title>Nihongo – Paso 1 Login</title>
+
+<style>
+body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
+button { padding:6px 10px; margin:6px 0; }
+.card { background:#fff; padding:15px; border-radius:6px; max-width:400px; }
+.hidden { display:none; }
+nav button { margin-right:6px; }
+</style>
 </head>
 
 <body>
 
-<h1>Firebase OK</h1>
-<div id="out">Cargando…</div>
+<h1>Nihongo App</h1>
 
-<!-- ✅ FIREBASE BIEN CARGADO (AMBOS SCRIPTS) -->
+<nav id="menu" class="hidden">
+  <button id="btnHome">Home</button>
+  <button id="btnOut">Salir</button>
+</nav>
+
+<div id="app"></div>
+
+<!-- ✅ Firebase BIEN cargado -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
-  console.log("JS cargó");
+firebase.initializeApp({
+  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+  authDomain: "nihongoapp-85125.firebaseapp.com",
+  projectId: "nihongoapp-85125"
+});
+const db = firebase.firestore();
 
-  // Inicializa Firebase
-  firebase.initializeApp({
-    apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
-    authDomain: "nihongoapp-85125.firebaseapp.com",
-    projectId: "nihongoapp-85125"
-  });
+const app = document.getElementById("app");
+const menu = document.getElementById("menu");
 
-  // Inicializa Firestore
-  const db = firebase.firestore();
+mostrarLogin();
 
-  // Prueba real de Firestore
-  db.collection("alumnos").limit(1).get()
-    .then(() => {
-      document.getElementById("out").innerHTML =
-        "✅ Firebase App + Firestore FUNCIONAN";
-    })
-    .catch(err => {
-      document.getElementById("out").innerHTML =
-        "❌ Error Firestore: " + err.message;
-      console.error(err);
-    });
+function mostrarLogin(){
+  menu.classList.add("hidden");
+  app.innerHTML = `
+    <div class="card">
+      <h2>Login</h2>
+      <input id="u" placeholder="Usuario"><br>
+      <input id="p" type="password" placeholder="Contraseña"><br>
+      <button id="go">Entrar</button>
+    </div>
+  `;
+  document.getElementById("go").onclick = login;
+}
+
+async function login(){
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value.trim();
+
+  // Maestro
+  if(u==="admin" && p==="admin"){
+    localStorage.setItem("sesion", JSON.stringify({tipo:"maestro"}));
+    mostrarHome("Maestro");
+    return;
+  }
+
+  // Alumno
+  const snap = await db.collection("alumnos").doc(u).get();
+  if(snap.exists && snap.data().pass===p){
+    localStorage.setItem("sesion", JSON.stringify({tipo:"alumno", usuario:u}));
+    mostrarHome("Alumno");
+    return;
+  }
+
+  alert("Credenciales incorrectas");
+}
+
+function mostrarHome(tipo){
+  menu.classList.remove("hidden");
+  app.innerHTML = `
+    <div class="card">
+      <h2>Bienvenido (${tipo})</h2>
+      <p>Login funcionando ✅</p>
+    </div>
+  `;
+}
+
+document.getElementById("btnOut").onclick = () => {
+  localStorage.clear();
+  location.reload();
+};
 </script>
 
 </body>
