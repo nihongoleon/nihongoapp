@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nihongo – Paso 4A</title>
+<title>Nihongo – Paso 4B</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
@@ -32,17 +32,29 @@ th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 
 <div id="app"></div>
 
-<script>
-/* ================= ESTADO EN MEMORIA ================= */
-let alumnos = [];
-let modalidades = [];
+<!-- ✅ FIREBASE BIEN CARGADO (LOS DOS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-/* ================= ARRANQUE ================= */
+<script>
+/* ===== FIREBASE ===== */
+firebase.initializeApp({
+  apiKey: "AIzaSyAOcQAh7cYKhQ5EeOfmYJhzX40J-LD-nyI",
+  authDomain: "nihongoapp-85125.firebaseapp.com",
+  projectId: "nihongoapp-85125"
+});
+const db = firebase.firestore();
+
+/* ===== ESTADO ===== */
+const app = document.getElementById("app");
+const menu = document.getElementById("menu");
+
+/* ===== ARRANQUE ===== */
 mostrarLogin();
 
-/* ================= LOGIN ================= */
+/* ===== LOGIN ===== */
 function mostrarLogin(){
-  document.getElementById("menu").classList.add("hidden");
+  menu.classList.add("hidden");
   app.innerHTML = `
     <div class="card">
       <h2>Login Maestro</h2>
@@ -56,7 +68,7 @@ function mostrarLogin(){
 
 function login(){
   if(u.value === "admin" && p.value === "admin"){
-    document.getElementById("menu").classList.remove("hidden");
+    menu.classList.remove("hidden");
     mostrarDirectorio();
   } else {
     alert("Credenciales incorrectas");
@@ -65,8 +77,14 @@ function login(){
 
 document.getElementById("btnOut").onclick = () => location.reload();
 
-/* ================= DIRECTORIO ================= */
-function mostrarDirectorio(){
+/* ===== DIRECTORIO ===== */
+async function mostrarDirectorio(){
+  const alumnosSnap = await db.collection("alumnos").get();
+  const modsSnap = await db.collection("modalidades").get();
+
+  const alumnos = alumnosSnap.docs.map(d => d.data());
+  const mods = modsSnap.docs.map(d => d.data());
+
   app.innerHTML = `
     <div class="card">
       <h2>Directorio</h2>
@@ -77,7 +95,7 @@ function mostrarDirectorio(){
           <th>Estatus</th>
         </tr>
         ${alumnos.map(a => {
-          const m = modalidades.find(x => x.id === a.modalidadId);
+          const m = mods.find(x => x.id === a.modalidadId);
           return `
             <tr>
               <td>${a.nombre}</td>
@@ -93,9 +111,12 @@ function mostrarDirectorio(){
   `;
 }
 
-/* ================= ALTA ALUMNO ================= */
-function mostrarAlta(){
-  if(modalidades.length === 0){
+/* ===== ALTA ALUMNO ===== */
+async function mostrarAlta(){
+  const modsSnap = await db.collection("modalidades").get();
+  const mods = modsSnap.docs.map(d => d.data());
+
+  if(mods.length === 0){
     alert("Primero crea una modalidad");
     return;
   }
@@ -107,7 +128,7 @@ function mostrarAlta(){
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <select id="rm">
-        ${modalidades.map(m => `<option value="${m.id}">${m.nombre}</option>`).join("")}
+        ${mods.map(m => `<option value="${m.id}">${m.nombre}</option>`).join("")}
       </select>
       <button id="reg">Registrar</button>
     </div>
@@ -115,8 +136,8 @@ function mostrarAlta(){
   document.getElementById("reg").onclick = registrarAlumno;
 }
 
-function registrarAlumno(){
-  alumnos.push({
+async function registrarAlumno(){
+  await db.collection("alumnos").doc(ru.value).set({
     usuario: ru.value,
     pass: rp.value,
     nombre: rn.value,
@@ -126,7 +147,7 @@ function registrarAlumno(){
   mostrarDirectorio();
 }
 
-/* ================= MODALIDADES ================= */
+/* ===== MODALIDADES ===== */
 function mostrarModalidades(){
   app.innerHTML = `
     <div class="card">
@@ -135,19 +156,15 @@ function mostrarModalidades(){
       <input id="mm" type="number" placeholder="Monto">
       <input id="mr" type="number" placeholder="Recurrencia (días)">
       <button id="add">Agregar</button>
-
-      <h3>Existentes</h3>
-      <ul>
-        ${modalidades.map(m => `<li>${m.nombre} ($${m.monto})</li>`).join("")}
-      </ul>
     </div>
   `;
   document.getElementById("add").onclick = crearModalidad;
 }
 
-function crearModalidad(){
-  modalidades.push({
-    id: mn.value.toLowerCase().replace(/\s+/g,"_"),
+async function crearModalidad(){
+  const id = mn.value.toLowerCase().replace(/\s+/g, "_");
+  await db.collection("modalidades").doc(id).set({
+    id,
     nombre: mn.value,
     monto: Number(mm.value),
     recurrenciaDias: Number(mr.value)
@@ -155,12 +172,15 @@ function crearModalidad(){
   mostrarModalidades();
 }
 
-/* ================= COBRANZA ================= */
-function mostrarCobranza(){
+/* ===== COBRANZA ===== */
+async function mostrarCobranza(){
+  const snap = await db.collection("alumnos").get();
+  const alumnos = snap.docs.map(d => d.data());
+
   app.innerHTML = `
     <div class="card">
       <h2>Cobranza</h2>
-      ${alumnos.map((a,i) => `
+      ${alumnos.map(a => `
         <div class="card">
           <b>${a.nombre}</b><br>
           Estatus:
@@ -169,7 +189,7 @@ function mostrarCobranza(){
           </span><br><br>
           ${a.pagado
             ? "<small>Sin pagos pendientes</small>"
-            : `<button onclick="registrarPago(${i})">Registrar pago</button>`
+            : `<button onclick="registrarPago('${a.usuario}')">Registrar pago</button>`
           }
         </div>
       `).join("")}
@@ -177,12 +197,12 @@ function mostrarCobranza(){
   `;
 }
 
-function registrarPago(i){
-  alumnos[i].pagado = true;
+async function registrarPago(usuario){
+  await db.collection("alumnos").doc(usuario).update({ pagado: true });
   mostrarCobranza();
 }
 
-/* ================= MENU ================= */
+/* ===== MENU ===== */
 document.getElementById("btnDir").onclick = mostrarDirectorio;
 document.getElementById("btnAlta").onclick = mostrarAlta;
 document.getElementById("btnMods").onclick = mostrarModalidades;
@@ -191,3 +211,4 @@ document.getElementById("btnCob").onclick = mostrarCobranza;
 
 </body>
 </html>
+``
