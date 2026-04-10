@@ -5,7 +5,7 @@
 <title>Nihongo – Fase 5.2</title>
 
 <style>
-body { font-family: Arial; padding:30px; background:#f5f5f5; }
+body { font-family: Arial, sans-serif; padding:30px; background:#f5f5f5; }
 nav { margin-bottom:15px; }
 button { padding:6px 10px; margin-right:6px; }
 input, select { padding:6px; width:100%; margin-bottom:6px; }
@@ -38,9 +38,10 @@ a.disabled{pointer-events:none;color:#999;text-decoration:none}
 
 <div id="app"></div>
 
-<!-- ✅ SCRIPTS BIEN CARGADOS -->
-<script src="https://www.gstatic.com/firebasejs/10.12pp-compat.js
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat
+<!-- ✅ SCRIPTS BIEN CARGADOS (ESTO ES CLAVE) -->
+https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <script>
 /* ================= FIREBASE ================= */
 firebase.initializeApp({
@@ -67,11 +68,12 @@ async function init(){
   clases = (await db.collection("clases").get()).docs.map(d=>({...d.data(),id:d.id}));
 
   const s = JSON.parse(localStorage.getItem("sesion"));
-  if(!s){ loginUI(); return; }
+  if(!s){ mostrarLogin(); return; }
 
   if(s.tipo==="maestro"){
     menu.classList.remove("hidden");
-    dashboard(); return;
+    dashboard(); 
+    return;
   }
 
   if(s.tipo==="alumno"){
@@ -79,20 +81,20 @@ async function init(){
     if(a){ vistaAlumno(a); return; }
   }
 
-  loginUI();
+  mostrarLogin();
 }
 
 /* ================= LOGIN ================= */
-function loginUI(){
+function mostrarLogin(){
   menu.classList.add("hidden");
-  app.innerHTML=`
+  app.innerHTML = `
     <div class="card">
       <h2>Login</h2>
       <input id="u" placeholder="Usuario">
       <input id="p" type="password" placeholder="Contraseña">
       <button id="go">Entrar</button>
     </div>`;
-  go.onclick=login;
+  document.getElementById("go").onclick = login;
 }
 
 async function login(){
@@ -124,31 +126,36 @@ function estatus(a){
   const ult = (a.pagos||[]).filter(p=>p.tipo==="recurrente").slice(-1)[0];
   if(!ult) return {t:"Adeudo",c:"red"};
 
-  const v=new Date(ult.fecha);
+  const v = new Date(ult.fecha);
   v.setDate(v.getDate()+mod.recurrenciaDias);
-  return new Date()<=v?{t:"Al corriente",c:"green"}:{t:"Adeudo",c:"red"};
+  return new Date()<=v ? {t:"Al corriente",c:"green"} : {t:"Adeudo",c:"red"};
 }
 
 /* ================= DASHBOARD ================= */
 function dashboard(){
-  app.innerHTML=`<div class="card"><h2>Dashboard</h2><p>OK</p></div>`;
+  app.innerHTML = `
+    <div class="card">
+      <h2>Dashboard</h2>
+      <p>Alumnos registrados: ${alumnos.length}</p>
+    </div>`;
 }
 
 /* ================= DIRECTORIO ================= */
 function directorio(){
-  app.innerHTML=`
+  app.innerHTML = `
     <div class="card">
       <h2>Directorio</h2>
       <table>
         <tr><th>Alumno</th><th>Grupo</th><th>Estatus</th></tr>
         ${alumnos.map(a=>{
-          const e=estatus(a);
-          const g=grupos.find(x=>x.id===a.grupoId);
-          return `<tr>
-            <td>${a.nombre}</td>
-            <td>${g?.nombre||""}</td>
-            <td class="${e.c}">${e.t}</td>
-          </tr>`;
+          const e = estatus(a);
+          const g = grupos.find(x=>x.id===a.grupoId);
+          return `
+            <tr>
+              <td>${a.nombre}</td>
+              <td>${g?.nombre||""}</td>
+              <td class="${e.c}">${e.t}</td>
+            </tr>`;
         }).join("")}
       </table>
     </div>`;
@@ -156,21 +163,22 @@ function directorio(){
 
 /* ================= ALTA ================= */
 function alta(){
-  app.innerHTML=`
+  app.innerHTML = `
     <div class="card">
       <h2>Alta Alumno</h2>
       <input id="ru" placeholder="Usuario">
       <input id="rp" placeholder="Contraseña">
       <input id="rn" placeholder="Nombre">
       <select id="rm">
-        ${modalidades.filter(m=>m.tipo!=="inscripcion").map(m=>`<option value="${m.id}">${m.nombre}</option>`).join("")}
+        ${modalidades.filter(m=>m.tipo!=="inscripcion")
+          .map(m=>`<option value="${m.id}">${m.nombre}</option>`).join("")}
       </select>
       <select id="rg">
         ${grupos.map(g=>`<option value="${g.id}">${g.nombre}</option>`).join("")}
       </select>
-      <input id="rInicio" type="date">
-      <button onclick="crearAlumno()">Crear</button>
+      <button id="crear">Crear</button>
     </div>`;
+  document.getElementById("crear").onclick = crearAlumno;
 }
 
 async function crearAlumno(){
@@ -180,7 +188,6 @@ async function crearAlumno(){
     nombre:rn.value,
     modId:rm.value,
     grupoId:rg.value,
-    inicioCobro:rInicio.value,
     pagos:[]
   });
   init();
@@ -188,7 +195,7 @@ async function crearAlumno(){
 
 /* ================= MODALIDADES ================= */
 function mods(){
-  app.innerHTML=`
+  app.innerHTML = `
     <div class="card">
       <h2>Modalidades</h2>
       <input id="mn" placeholder="Nombre">
@@ -198,49 +205,57 @@ function mods(){
         <option value="unica">Única</option>
       </select>
       <input id="mr" type="number" placeholder="Recurrencia días">
-      <button onclick="crearMod()">Agregar</button>
+      <button id="addMod">Agregar</button>
     </div>`;
+  document.getElementById("addMod").onclick = crearMod;
 }
 
 async function crearMod(){
-  const id=mn.value.toLowerCase().replace(/\s+/g,"_");
+  const id = mn.value.toLowerCase().replace(/\s+/g,"_");
   await db.collection("modalidades").doc(id).set({
-    id,nombre:mn.value,monto:+mm.value,tipo:mt.value,recurrenciaDias:+mr.value||0
+    id,
+    nombre:mn.value,
+    monto:+mm.value,
+    tipo:mt.value,
+    recurrenciaDias:+mr.value||0
   });
   init();
 }
 
 /* ================= GRUPOS ================= */
 function gruposUI(){
-  app.innerHTML=`
+  app.innerHTML = `
     <div class="card">
       <h2>Grupos</h2>
       <input id="gn" placeholder="Nombre">
       <input id="gd" placeholder="Días">
       <input id="gh" placeholder="Hora">
       <input id="gt" placeholder="Link Grupo Teams">
-      <button onclick="crearGrupo()">Agregar</button>
+      <button id="addGrupo">Agregar</button>
     </div>`;
+  document.getElementById("addGrupo").onclick = crearGrupo;
 }
 
 async function crearGrupo(){
   await db.collection("grupos").add({
-    nombre:gn.value,dias:gd.value,hora:gh.value,linkGrupo:gt.value
+    nombre:gn.value,
+    dias:gd.value,
+    hora:gh.value,
+    linkGrupo:gt.value
   });
   init();
 }
 
 /* ================= CLASES ================= */
 function clasesUI(){
-  app.innerHTML=grupos.map(g=>{
-    return `
-      <div class="card">
-        <b>${g.nombre}</b>
-        <input id="tema_${g.id}" placeholder="Tema">
-        <input id="link_${g.id}" placeholder="Link reunión">
-        <button onclick="guardarClase('${g.id}')">Guardar</button>
-      </div>`;
-  }).join("");
+  app.innerHTML = grupos.map(g=>`
+    <div class="card">
+      <b>${g.nombre}</b>
+      <input id="tema_${g.id}" placeholder="Tema">
+      <input id="link_${g.id}" placeholder="Link reunión">
+      <button onclick="guardarClase('${g.id}')">Guardar</button>
+    </div>
+  `).join("");
 }
 
 async function guardarClase(grupoId){
@@ -255,23 +270,25 @@ async function guardarClase(grupoId){
 
 /* ================= COBRANZA ================= */
 function cob(){
-  app.innerHTML=alumnos.map(a=>{
-    const e=estatus(a);
+  app.innerHTML = alumnos.map(a=>{
+    const e = estatus(a);
     return `
       <div class="card">
         <b>${a.nombre}</b>
         <p class="${e.c}">${e.t}</p>
-        ${e.t!=="Al corriente"?`<button onclick="pagar('${a.usuario}')">Registrar pago</button>`:`<small>Sin pagos pendientes</small>`}
+        ${e.t!=="Al corriente"
+          ? `<button onclick="pagar('${a.usuario}')">Registrar pago</button>`
+          : `<small>Sin pagos pendientes</small>`}
       </div>`;
   }).join("");
 }
 
 async function pagar(u){
-  const a=alumnos.find(x=>x.usuario===u);
+  const a = alumnos.find(x=>x.usuario===u);
   if(!(a.pagos||[]).find(p=>p.tipo==="inscripcion")){
     a.pagos.push({tipo:"inscripcion",fecha:new Date().toISOString(),monto:500});
   }else{
-    const m=modalidades.find(x=>x.id===a.modId);
+    const m = modalidades.find(x=>x.id===a.modId);
     a.pagos.push({tipo:"recurrente",fecha:new Date().toISOString(),monto:m.monto});
   }
   await db.collection("alumnos").doc(u).set(a);
@@ -280,20 +297,18 @@ async function pagar(u){
 
 /* ================= VISTA ALUMNO ================= */
 function vistaAlumno(a){
-  const e=estatus(a);
-  const g=grupos.find(x=>x.id===a.grupoId);
-  const c=clases.find(x=>x.grupoId===a.grupoId);
-  app.innerHTML=`
+  const e = estatus(a);
+  const g = grupos.find(x=>x.id===a.grupoId);
+  const c = clases.find(x=>x.grupoId===a.grupoId);
+  app.innerHTML = `
     <div class="card">
       <h2>${a.nombre}</h2>
       <p class="${e.c}">${e.t}</p>
       <p>Grupo: ${g?.nombre||""}</p>
       <p>Tema próximo: ${c?.tema||""}</p>
-      ${e.t==="Al corriente"?
-        `<a href="${c?.link||"#ase</a><br>
-         ${g?.linkGrupo||Ir al grupo</a>`:
-        `<small>Acceso bloqueado por estatus</small>`
-      }
+      ${e.t==="Al corriente"
+        ? `<a href="${c?.link||"#"}" targetgpo||Ir al grupo</a>`
+        : `<small>Acceso bloqueado por estatus</small>`}
       <br><button onclick="logout()">Salir</button>
     </div>`;
 }
